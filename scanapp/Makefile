@@ -17,6 +17,9 @@ CXX_ARGS+=$(CXX_RELEASE_ARGS)
 LD_ARGS+=$(CXX_RELEASE_ARGS)
 endif
 
+SDK_LIB:=external/lib/libsl_lidar_sdk.a
+SDK_INCLUDE:=-Iexternal/rplidar_sdk/sdk/include
+
 SOURCES:=$(wildcard src/*.cpp)
 OBJECTS:=$(patsubst src/%.cpp, lib/%.o, $(SOURCES))
 TESTS:=$(wildcard tests/*.cpp)
@@ -25,7 +28,6 @@ TEST_BUILDS:=$(patsubst tests/%.cpp, bin/tests/%, $(TESTS))
 MAIN:=main.cpp
 MAIN_OBJECT:=lib/main.o
 MAIN_BUILD:=bin/scanapp
-SDK_LIB:=external/lib/libsl_lidar_sdk.a
 ALL_OBJECTS:=$(OBJECTS) $(TEST_OBJECTS) $(MAIN_OBJECT) $(STATIC_LIBS)
 COMP_COMMANDS:=$(patsubst lib/%.o, cc/%.json, $(ALL_OBJECTS))
 
@@ -55,15 +57,15 @@ compile_commands.json: $(ALL_OBJECTS)
 
 lib/%.o: src/%.c
 	mkdir -p lib cc; \
-	$(CXX) $(CXX_ARGS) -MJ $(patsubst lib/%.o, cc/%.json, $@) -c $< -o $@
+	$(CXX) $(CXX_ARGS) $(SDK_INCLUDE) -MJ $(patsubst lib/%.o, cc/%.json, $@) -c $< -o $@
 
 lib/%.o: tests/%.c
 	mkdir -p lib cc; \
-	$(CXX) $(CXX_ARGS) -MJ $(patsubst lib/%.o, cc/%.json, $@) -c $< -o $@
+	$(CXX) $(CXX_ARGS) $(SDK_INCLUDE) -MJ $(patsubst lib/%.o, cc/%.json, $@) -c $< -o $@
 
-$(MAIN_OBJECT): $(MAIN)
+$(MAIN_OBJECT): $(MAIN) $(SDK_LIB)
 	mkdir -p lib cc; \
-	$(CXX) $(CXX_ARGS) -MJ cc/main.json -c $< -o $@
+	$(CXX) $(CXX_ARGS) $(SDK_INCLUDE) -MJ cc/main.json -c $< -o $@
 
 $(MAIN_BUILD): $(OBJECTS) $(MAIN_OBJECT) $(SDK_LIB)
 	mkdir -p bin; \

@@ -1,3 +1,43 @@
+diff --git a/sdk/include/sl_lidar_cmd.h b/sdk/include/sl_lidar_cmd.h
+index bd3f8d2..f49c64f 100644
+--- a/sdk/include/sl_lidar_cmd.h
++++ b/sdk/include/sl_lidar_cmd.h
+@@ -321,7 +321,7 @@ typedef struct _sl_lidar_response_hq_capsule_measurement_nodes_t
+ typedef struct _sl_lidar_response_get_lidar_conf
+ {
+     sl_u32 type;
+-    sl_u8  payload[0];
++    sl_u8  payload[1];
+ }__attribute__((packed)) sl_lidar_response_get_lidar_conf_t;
+ 
+ typedef struct _sl_lidar_response_set_lidar_conf
+@@ -385,4 +385,4 @@ typedef struct  _sl_lidar_response_desired_rot_speed_t{
+ 
+ #if defined(_MSC_VER)
+ #pragma warning(pop)
+-#endif
+\ No newline at end of file
++#endif
+diff --git a/sdk/include/sl_lidar_protocol.h b/sdk/include/sl_lidar_protocol.h
+index a9a10c1..53fe795 100644
+--- a/sdk/include/sl_lidar_protocol.h
++++ b/sdk/include/sl_lidar_protocol.h
+@@ -63,7 +63,7 @@ typedef struct sl_lidar_cmd_packet_t
+     sl_u8 syncByte; //must be SL_LIDAR_CMD_SYNC_BYTE
+     sl_u8 cmd_flag;
+     sl_u8 size;
+-    sl_u8 data[0];
++    sl_u8 data[1];
+ } __attribute__((packed)) sl_lidar_cmd_packet_t;
+ 
+ 
+@@ -82,4 +82,4 @@ typedef struct sl_lidar_ans_header_t
+ 
+ #if defined(_MSC_VER)
+ #pragma warning(pop)
+-#endif
+\ No newline at end of file
++#endif
 diff --git a/sdk/src/sl_async_transceiver.cpp b/sdk/src/sl_async_transceiver.cpp
 index c8033a5..c36f2aa 100644
 --- a/sdk/src/sl_async_transceiver.cpp
