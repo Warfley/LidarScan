@@ -1,0 +1,3 @@
+[submodule "scanapp/external/rplidar_sdk"]
+	path = scanapp/external/rplidar_sdk
+	url = https://github.com/Slamtec/rplidar_sdk.git
