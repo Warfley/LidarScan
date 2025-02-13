@@ -1,21 +1,18 @@
 use <gears.scad>
 
-// TODO: Configure thread size
-// Measured: 1mm
-thread_size = 10;
 // Extra width for mount: 1mm
 mount_width = 10;
 
 module screw_mount_cylinder(h, r) {
     // TODO: Check if fit
-    cylinder(h=h, r=(r+thread_size)+mount_width);
+    cylinder(h=h+mount_width, r=r+mount_width);
 }
 
-module screw_mount(h, r) {
+module screw_mount(h, r, socket_melt=/*Slightly smaller to melt into walls*/5) {
     difference() {
-        screw_mount_cylinder(h,r+thread_size);
-        translate([0,0,10])
-            cylinder(h=h, r=r+thread_size);
+        screw_mount_cylinder(h,r);
+        translate([0,0,mount_width])
+            cylinder(h=h, r=r-socket_melt);
     }
 }
 
@@ -28,16 +25,16 @@ module qimount(w) {
     }
 }
 
-module mount_plattform(w,screw_height,screw_distance,screw_size=/*M3*/30) {
+module mount_plattform(w,screw_height,screw_distance,screw_socket_size=/*M3*/50) {
     union() {
         translate([(screw_distance/2),(screw_distance/2),-screw_height+10])
-            screw_mount(screw_height,screw_size);
+            screw_mount(screw_height,screw_socket_size);
         translate([-(screw_distance/2),(screw_distance/2),-screw_height+10])
-            screw_mount(screw_height,screw_size);
+            screw_mount(screw_height,screw_socket_size);
         translate([(screw_distance/2),-(screw_distance/2),-screw_height+10])
-            screw_mount(screw_height,screw_size);
+            screw_mount(screw_height,screw_socket_size);
         translate([-(screw_distance/2),-(screw_distance/2),-screw_height+10])
-            screw_mount(screw_height,screw_size);
+            screw_mount(screw_height,screw_socket_size);
         difference() {
             translate([0,0,-15])
                 minkowski() {
@@ -45,53 +42,52 @@ module mount_plattform(w,screw_height,screw_distance,screw_size=/*M3*/30) {
                     cylinder(10,r=40);
                 }
             translate([(screw_distance/2),(screw_distance/2),-screw_height+10])
-                screw_mount_cylinder(screw_height,screw_size);
+                screw_mount_cylinder(screw_height,screw_socket_size-mount_width);
             translate([-(screw_distance/2),(screw_distance/2),-screw_height+10])
-                screw_mount_cylinder(screw_height,screw_size);
+                screw_mount_cylinder(screw_height,screw_socket_size-mount_width);
             translate([(screw_distance/2),-(screw_distance/2),-screw_height+10])
-                screw_mount_cylinder(screw_height,screw_size);
+                screw_mount_cylinder(screw_height,screw_socket_size-mount_width);
             translate([-(screw_distance/2),-(screw_distance/2),-screw_height+10])
-                screw_mount_cylinder(screw_height,screw_size);
+                screw_mount_cylinder(screw_height,screw_socket_size-mount_width);
         }
-        rotate([-180,0,0])
-            translate([0,0,20])
-                qimount(150);
     }
 }
 
 
-module servo_mount(w,screw_offset,screw_distance,screw_height,screw_size=/*M2*/20) {
+module servo_mount(w,screw_offset,screw_distance,screw_height,screw_socket_size=/*M2*/32) {
     union() {
         translate([(screw_distance/2),0,screw_offset])
-            screw_mount(screw_height, screw_size);
+            screw_mount(screw_height, screw_socket_size);
         translate([-(screw_distance/2),0,screw_offset])
-            screw_mount(screw_height, screw_size);
+            screw_mount(screw_height, screw_socket_size);
         translate([0,(screw_distance/2),screw_offset])
-            screw_mount(screw_height, screw_size);
+            screw_mount(screw_height, screw_socket_size);
         translate([0,-(screw_distance/2),screw_offset])
-            screw_mount(screw_height, screw_size);
+            screw_mount(screw_height, screw_socket_size);
         difference() {
             cylinder(25, r1=w/2,r2=w*0.4);
             translate([(screw_distance/2),0,screw_offset])
-                screw_mount_cylinder(screw_height, screw_size);
+                screw_mount_cylinder(screw_height, screw_socket_size-mount_width);
             translate([-(screw_distance/2),0,screw_offset])
-                screw_mount_cylinder(screw_height, screw_size);
+                screw_mount_cylinder(screw_height, screw_socket_size-mount_width);
             translate([0,(screw_distance/2),screw_offset])
-                screw_mount_cylinder(screw_height, screw_size);
+                screw_mount_cylinder(screw_height, screw_socket_size-mount_width);
             translate([0,-(screw_distance/2),screw_offset])
-                screw_mount_cylinder(screw_height, screw_size);
+                screw_mount_cylinder(screw_height, screw_socket_size-mount_width);
         }
     }
 }
 
-
 union() {
-    mount_plattform(750, 80, 580);
+    mount_plattform(750, 60, 580);
+    // Screw socket for 1/4 mount
+    rotate([-180,0,0])
+        translate([0,0,20])
+            qimount(150);
     // Mount platform for servo motor -> Directly mounted to bottom plattform
-    servo_mount(w=320, screw_offset=25, screw_distance=150, screw_height=60);
+    servo_mount(w=320, screw_offset=25, screw_distance=150, screw_height=40);
     //bevel_gear(7.5, 40, 45, 40, 0, 20, 25);
 }
-
 
 // Zahnrad Schrittmotor: 1-2 -> 0.9°
 //rotate([90,0,0])
