@@ -60,7 +60,9 @@ module mount_plattform(w,screw_height,screw_distance,screw_socket_size=/*M3*/5) 
 }
 
 
-module servo_mount(w,screw_offset,screw_distance,screw_height,screw_socket_size=/*M2*/3.2) {
+module servo_mount(w,h,screw_distance,screw_height,screw_socket_size=/*M2*/3.2) {
+    screw_offset=h-1;
+    top_widht=screw_distance/2+screw_socket_size/2+mount_width*2;
     union() {
         translate([(screw_distance/2),0,screw_offset])
             screw_mount(screw_height, screw_socket_size);
@@ -71,7 +73,7 @@ module servo_mount(w,screw_offset,screw_distance,screw_height,screw_socket_size=
         translate([0,-(screw_distance/2),screw_offset])
             screw_mount(screw_height, screw_socket_size);
         difference() {
-            cylinder(2.5, r1=w/2,r2=w*0.4);
+            cylinder(h, r1=w/2,r2=top_widht);
             translate([(screw_distance/2),0,screw_offset])
                 screw_mount_cylinder(screw_height, screw_socket_size-mount_width);
             translate([-(screw_distance/2),0,screw_offset])
@@ -92,7 +94,7 @@ union() {
         translate([0,0,2])
             qimount(30);
     // Mount platform for servo motor -> Directly mounted to bottom plattform
-    servo_mount(w=32, screw_offset=2.5, screw_distance=15, screw_height=4);
+    servo_mount(w=32, h=4, screw_distance=15, screw_height=4);
     //bevel_gear(0.75, 40, 45, 4, 0, 20, 25);
 }
 //*/
