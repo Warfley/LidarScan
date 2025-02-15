@@ -14,8 +14,8 @@
 #define MIN_VAL 500
 #define MAX_VAL 9000
 
-#define DEFAULT_START 1200
-#define DEFAULT_STOP 7800
+#define DEFAULT_START 1400
+#define DEFAULT_STOP 8000
 
 static char const *TAG = "Servo Control";
 
@@ -253,6 +253,9 @@ void command_loop(ledc_channel_config_t const *channel) {
             }
             if (!consume_eol("set")) {
                 continue;
+            }
+            if (!(target>=0 && target<=180)) {
+                printf("Invalid value %f° (must be between 0 and 180)\n", target);
             }
             set_degree(channel, start, stop, target);
         } else if (!strncmp(buff, "calibrate",sizeof(buff))) {
