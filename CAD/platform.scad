@@ -10,11 +10,11 @@ module screw_mount_cylinder(h, d) {
     cylinder(h=h+mount_width, r=d/2 + mount_width);
 }
 
-module screw_mount(h, d, socket_melt=/*Slightly smaller to melt into walls*/0.2) {
+module screw_mount(h, d) {
     difference() {
         screw_mount_cylinder(h,d);
         translate([0,0,mount_width])
-            cylinder(h=h, r=(d/2)-socket_melt);
+            cylinder(h=h, r=d/2);
     }
 }
 
@@ -103,7 +103,7 @@ union() {
 // Calibration/Test mount
 union() {
     // Mount platform for servo motor -> Directly mounted to bottom plattform
-    servo_mount(w=32, screw_offset=2.5, screw_distance=15, screw_height=4);
+    servo_mount(w=32, h=4, screw_distance=15, screw_height=4);
     // color("black")
     translate([12,0,0]) 
     linear_extrude(2)
@@ -113,6 +113,11 @@ union() {
     polygon(points = [[0,-4],[0,4],[-6,0]], paths = [[0,1,2]]);
 }
 */
+
+//translate([30,0,0])
+//   screw_mount(6,5);
+//translate([-30,0,0])
+//screw_mount(12.7,8);
 
 // Zahnrad Schrittmotor: 1-2 -> 0.9°
 //rotate([90,0,0])
