@@ -3,13 +3,13 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "driver/ledc.h"
 
 #include "esp_system.h"
 #include "esp_log.h"
 #include "esp_err.h"
-
-#include "esp_rom_uart.h"
 
 #define MIN_VAL 500
 #define MAX_VAL 9000
@@ -68,15 +68,27 @@ static inline void set_degree(ledc_channel_config_t const *channel,
     ESP_LOGI(TAG, "Updateing to %f (%d)", degree, value);
 }
 
+static char next_char(bool peek) {
+    static char buff = '\0';
+    static bool hasbuff = false;
+    if (!hasbuff) {
+        for (;fread(&buff, sizeof(buff), 1, stdin)!=1;vTaskDelay(100/portTICK_PERIOD_MS));
+        printf("%c", buff);
+        fflush(stdout);
+    }
+    // If peeking keep buffer
+    hasbuff = peek;
+    return buff;
+}
+
 static inline void discard_rest_of_line(void) {
-    for (uint8_t c=0;c!=(uint8_t)'\n';esp_rom_output_rx_one_char(&c));
+    for (char c=0;c!='\n';c=next_char(false));
 }
 
 int read_line(char *buff, int buff_len) {
     int result = 0;
     for (;result<buff_len-1;++result) {
-        char c;
-        esp_rom_output_rx_one_char((uint8_t*)&c);
+        char c = next_char(false);
         if (c=='\n') {
             buff[result]='\0';
             return result;
@@ -84,25 +96,21 @@ int read_line(char *buff, int buff_len) {
             buff[result]=c;
         }
     }
-    // buffer to small
+    // Last element must be \0
     buff[buff_len-1] = '\0';
+    if (next_char(true)=='\n') {
+        // fits exactly buffer
+        next_char(false);
+        return buff_len-1;
+    }
     discard_rest_of_line();
     return -1;
 }
 
-static char next_char(bool peek) {
-    static char buff = '\0';
-    static bool hasbuff = false;
-    if (!hasbuff) {
-        esp_rom_output_rx_one_char((uint8_t*)&buff);
-    }
-    // If peeking keep buffer
-    hasbuff = peek;
-    return buff;
-}
-
 static inline void skip_spaces(void) {
-    for(char c=next_char(true);c==' ';c=next_char(false),next_char(true));
+    for(char c=next_char(true);c==' ';c=next_char(true)) {
+        next_char(false);
+    }
 }
 
 int read_token(char *buff, int buff_len) {
@@ -139,10 +147,14 @@ bool read_float(double *d) {
         } else if (c=='.' && !infrac) {
             *d = part;
             part = 0;
-            base = 0;
+            base = 1;
             infrac=true;
         } else {
-            *d += (double)part / base;
+            if (infrac) {
+                *d += (double)part / base;
+            } else {
+                *d = part;
+            }
             break;
         }
         // Consume char if no early return
@@ -192,8 +204,7 @@ int32_t binary_search(ledc_channel_config_t const *channel,
         printf("Setting motor to %d", current);
         update_pwm(channel, current);
         printf("More (+), Less (-), accept (a) or Cancel (c)\n");
-        // This is a blocking read, as this program does not use any RTOS functionality, it shouldn't be an issue
-        if (read_line(buff, 2) != 1) {
+        if (read_line(buff, sizeof(buff)) != 1) {
             printf("Unknown command\n");
             continue;
         }
@@ -227,10 +238,13 @@ void command_loop(ledc_channel_config_t const *channel) {
     set_degree(channel, start, stop, 0);
     while (true) {
         printf("|>");
+        fflush(stdout);
         if (read_token(buff,sizeof(buff))<0) {
             printf("Invalid commad, type help for list of commands\n");
             discard_rest_of_line();
-        } else if (strncmp(buff, "set",sizeof(buff))) {
+            continue;
+        }
+        if (!strncmp(buff, "set",sizeof(buff))) {
             double target;
             if (!read_float(&target)) {
                 printf("Invalid degree argument for 'set', type help for list of commands\n");
@@ -241,10 +255,10 @@ void command_loop(ledc_channel_config_t const *channel) {
                 continue;
             }
             set_degree(channel, start, stop, target);
-        } else if (strncmp(buff, "calibrate",sizeof(buff))) {
+        } else if (!strncmp(buff, "calibrate",sizeof(buff))) {
             if (read_token(buff,sizeof(buff))<0 || (
-                    !strncmp(buff, "start", sizeof(buff)) &&
-                    !strncmp(buff, "stop", sizeof(buff))
+                    strncmp(buff, "start", sizeof(buff)) &&
+                    strncmp(buff, "stop", sizeof(buff))
                 )) {
                 printf("Invalid target argument for 'calibrate', type help for list of commands\n");
                 discard_rest_of_line();
@@ -263,7 +277,7 @@ void command_loop(ledc_channel_config_t const *channel) {
             if (res < 0) {
                 continue;
             }
-            if (strncmp(buff, "start", sizeof(buff))) {
+            if (!strncmp(buff, "start", sizeof(buff))) {
                 ESP_LOGI(TAG, "Updating start range to %d, consider changing the source to make this permanent (yes I know about NVS)", res);
                 start = res;
             } else {
@@ -271,14 +285,18 @@ void command_loop(ledc_channel_config_t const *channel) {
                 stop = res;
             }
             set_degree(channel, start, stop, 0);
-        } else if (strncmp(buff, "help", sizeof(buff))) {
+        } else if (!strncmp(buff, "help", sizeof(buff))) {
             printf("Commands:\n"
                    "  set [Degree:Float]\n"
                    "    Sets the motor to a certain degree\n"
                    "  calibrate [start|stop] [RStart:Int] [REnd:Int]\n"
                    "    Calibrates start/stop point using binary search in range RStart..REnd\n");
+            discard_rest_of_line();
         } else if (buff[0]) {
             printf("Unknown command %s, type help for list of commands\n", buff);
+            discard_rest_of_line();
+        } else {
+            discard_rest_of_line();
         }
     }
 }
