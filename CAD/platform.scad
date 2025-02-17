@@ -86,35 +86,6 @@ module servo_mount(w,h,screw_distance,screw_height,screw_socket_size=/*M2*/3.2) 
     }
 }
 
-/*
-// Bottom mount platform
-union() {
-    mount_plattform(75, 6, 58);
-    // Screw socket for 1/4 mount
-    rotate([-180,0,0])
-        translate([0,0,2])
-            qimount(30);
-    // Mount platform for servo motor -> Directly mounted to bottom plattform
-    servo_mount(w=32, h=4, screw_distance=15, screw_height=4);
-    //bevel_gear(0.75, 40, 45, 4, 0, 20, 25);
-}
-*/
-
-/*
-// Calibration/Test mount
-union() {
-    // Mount platform for servo motor -> Directly mounted to bottom plattform
-    servo_mount(w=32, h=4, screw_distance=15, screw_height=4);
-    // color("black")
-    translate([12,0,0])
-    linear_extrude(2)
-    polygon(points = [[0,-4],[0,4],[6,0]], paths = [[0,1,2]]);
-    translate([-12,0,0])
-    linear_extrude(2)
-    polygon(points = [[0,-4],[0,4],[-6,0]], paths = [[0,1,2]]);
-}
-*/
-
 module servo_frame(w,l,h,hw1,hw2,screw_position,screw_distance,screw_offset=1,screw_height=4,screw_socket_size=/*M2*/3.2) {
     union() {
         translate([l/2+screw_position,(screw_distance/2),screw_offset])
@@ -150,6 +121,59 @@ module servo_frame(w,l,h,hw1,hw2,screw_position,screw_distance,screw_offset=1,sc
     }
 }
 
+///*
+translate([0,0,-8])
+// Bottom mount platform
+union() {
+    mount_plattform(75, 6, 58);
+    // Screw socket for 1/4 mount
+    rotate([-180,0,0])
+        translate([0,0,2])
+            qimount(30);
+    // Mount platform for servo motor -> Directly mounted to bottom plattform
+    servo_mount(w=32, h=4, screw_distance=15, screw_height=4);
+    //bevel_gear(0.75, 40, 45, 4, 0, 20, 25);
+}
+//*/
+
+///*
+translate([0,0,-8])
+// Measurement plate
+// Forgot to print originally, so add now seperately
+translate([0,0,-4])
+difference() {
+    union() {
+        color("white")
+        cylinder(h=2,r=60);
+        color("black")
+        for (tick=[0:1:180]) {
+            rotate(tick,[0,0,1])
+                translate([0,58,2.2])
+                if (tick % 10 == 0) {
+                    translate([0,-1,0])
+                        cube([0.4,6,0.4], center=true);
+                } else {
+                    cube([0.4,4,0.4], center=true);
+                }
+        }
+    }
+    translate([30,0,1])
+        cube([60,120,4],center=true);
+    // copied from quimount above
+    rotate([-180,0,0])
+        translate([0,0,-2])
+            cylinder(h=15,r1=30,r2=15);
+
+    // copied from mount_platform above
+    translate([-(58/2),(58/2),-1])
+        screw_mount_cylinder(6,3.3);
+    translate([-(58/2),-(58/2),-1])
+        screw_mount_cylinder(6,3.3);
+}
+//*/
+
+///*
+translate([0,0,6])
 // Top platform for servo and lidar
 union() {
     difference() {
@@ -158,11 +182,15 @@ union() {
         translate([0,0,2])
             mount_plattform(75, 6, 58);
         translate([0,0,-3])
-        cylinder(3, r=10);
+        cylinder(3, r=11);
     }
     translate([14,0,0])
-    servo_frame(w=20, l=40, h=6, hw1=10,hw2=6, screw_position=5, screw_distance=10);
+    servo_frame(w=20, l=40, h=6, hw1=11,hw2=6, screw_position=5, screw_distance=10);
+    translate([-37,0,-2])
+    linear_extrude(2)
+    polygon(points = [[0,-4],[0,4],[-21,0]], paths = [[0,1,2]]);
 }
+//*/
 
 //translate([30,0,0])
 //   screw_mount(6,5);
