@@ -170,6 +170,7 @@ module measurement_ring(w,h,screw_distance,screw_socket_size=/*M3*/3.5) {
 
 module lidar_mount(offset,bolt_length,thickness=3,bolt_socket_size=/*M5*/7,screw_distance_h=70,screw_distance_w1=56,screw_distance_w2=40,screw_size=/*M2.5*/2.7) {
     union() {
+        s2_offset = (screw_distance_w1-screw_distance_w2) / 2;
         rotate([90,0,0]) {
             translate([-5,bolt_socket_size,-bolt_length-mount_offset])
                 screw_mount(bolt_length,bolt_socket_size);
@@ -183,19 +184,19 @@ module lidar_mount(offset,bolt_length,thickness=3,bolt_socket_size=/*M5*/7,screw
                         [-10.5,4],
                         [-screw_distance_h/2-5,offset],
                         [-screw_distance_h/2-5,offset+screw_distance_w1+5],
-                        [screw_distance_h/2+5,offset+screw_distance_w2+5],
-                        [screw_distance_h/2+5,offset],
+                        [screw_distance_h/2+5,offset+screw_distance_w2+5+s2_offset],
+                        [screw_distance_h/2+5,offset+s2_offset],
                         [10.5,4]
                         ], [[0,1,2,3,4,5]]);
                 cylinder(1,r=4);
             }
             translate([-screw_distance_h/2,offset,0])
                 cylinder(h=4,r=screw_size/2);
-            translate([screw_distance_h/2,offset,0])
+            translate([screw_distance_h/2,offset+s2_offset,0])
                 cylinder(h=4,r=screw_size/2);
             translate([-screw_distance_h/2,offset+screw_distance_w1,0])
                 cylinder(h=4,r=screw_size/2);
-            translate([screw_distance_h/2,offset+screw_distance_w2,0])
+            translate([screw_distance_h/2,offset+screw_distance_w2+s2_offset,0])
                 cylinder(h=4,r=screw_size/2);
         }
         difference() {
