@@ -1,5 +1,5 @@
-show_tripod_mount=true;
-show_bottom_platform=true;
+show_tripod_mount=false;
+show_bottom_platform=false;
 show_top_platform=true;
 show_lidar_mount=true;
 
@@ -173,52 +173,75 @@ module measurement_ring(w,h,screw_distance,screw_socket_size=/*M3*/3.7) {
     }
 }
 
-module lidar_mount(offset,bolt_length,center_offset=10,thickness=3,bolt_socket_size=/*M5*/7,screw_distance_h=70,screw_distance_w1=56,screw_distance_w2=40,screw_size=/*M2.5*/2.7) {
+module lidar_mount(foot_distance,offset,bolt_length,thickness=3,center_offset=10,bolt_size=6,bolt_socket_size=/*M5*/7,screw_distance_h=70,screw_distance_w1=56,screw_distance_w2=40,screw_size=/*M2.5*/2.7,screw_head_size=3.5) {
+    foot_width = bolt_socket_size+mount_width*2;
     union() {
         s2_offset = (screw_distance_w1-screw_distance_w2) / 2;
         rotate([90,0,0]) {
-            translate([-5,bolt_socket_size/2+thickness+mount_width,-bolt_length-mount_offset])
+            translate([-foot_distance/2,bolt_socket_size/2+mount_width+3,-bolt_length-mount_offset])
                 screw_mount(bolt_length,bolt_socket_size);
-            translate([5,bolt_socket_size/2+thickness+mount_width,-bolt_length-mount_offset])
+            translate([foot_distance/2,bolt_socket_size/2+mount_width+3,-bolt_length-mount_offset])
                 screw_mount(bolt_length,bolt_socket_size);
         }
         difference() {
             minkowski() {
                 linear_extrude(thickness-1)
                 polygon([
-                        [-10.5,4],
+                        [-(foot_distance+foot_width)/2,offset/2],
                         [-screw_distance_h/2-5+center_offset,offset],
                         [-screw_distance_h/2-5+center_offset,offset+screw_distance_w1+5],
+                        [-bolt_size-3,offset+screw_distance_w1+30],
+                        [bolt_size+3,offset+screw_distance_w1+30],
                         [screw_distance_h/2+5+center_offset,offset+screw_distance_w2+5+s2_offset],
                         [screw_distance_h/2+5+center_offset,offset+s2_offset],
-                        [10.5,4]
-                        ], [[0,1,2,3,4,5]]);
+                        [(foot_distance+foot_width)/2,offset/2]
+                        ], [[0,1,2,3,4,5,6,7]]);
                 cylinder(1,r=4);
             }
-            translate([-screw_distance_h/2+center_offset,offset,0])
-                cylinder(h=4,r=screw_size/2);
-            translate([screw_distance_h/2+center_offset,offset+s2_offset,0])
-                cylinder(h=4,r=screw_size/2);
-            translate([-screw_distance_h/2+center_offset,offset+screw_distance_w1,0])
-                cylinder(h=4,r=screw_size/2);
-            translate([screw_distance_h/2+center_offset,offset+screw_distance_w2+s2_offset,0])
-                cylinder(h=4,r=screw_size/2);
+            translate([-screw_distance_h/2+center_offset,offset,0]) {
+                cylinder(h=thickness,r=screw_size/2);
+                cylinder(h=thickness-3,r=screw_head_size/2);
+            }
+            translate([screw_distance_h/2+center_offset,offset+s2_offset,0]) {
+                cylinder(h=thickness,r=screw_size/2);
+                cylinder(h=thickness-3,r=screw_head_size/2);
+            }
+            translate([-screw_distance_h/2+center_offset,offset+screw_distance_w1,0]) {
+                cylinder(h=thickness,r=screw_size/2);
+                cylinder(h=thickness-3,r=screw_head_size/2);
+            }
+            translate([screw_distance_h/2+center_offset,offset+screw_distance_w2+s2_offset,0]) {
+                cylinder(h=thickness,r=screw_size/2);
+                cylinder(h=thickness-3,r=screw_head_size/2);
+            }
+            translate([-bolt_size,offset+screw_distance_w1+36-foot_width]) 
+                cylinder(thickness, r=bolt_size/2);
+            translate([bolt_size,offset+screw_distance_w1+36-foot_width]) 
+                cylinder(thickness, r=bolt_size/2);
         }
         difference() {
             minkowski() {
-                rotate([0,-90,0])
-                translate([1,1,-9.5])
-                linear_extrude(19)
-                polygon([[0,0],
-                            [15,0],
-                            [0,offset]], [[0,1,2]]);
+                union() {
+                    rotate([0,-90,0])
+                    translate([1,1,(foot_distance-foot_width)/2])
+                    linear_extrude(foot_width)
+                    polygon([[0,0],
+                                [15,0],
+                                [0,offset]], [[0,1,2]]);
+                    rotate([0,-90,0])
+                    translate([1,1,-(foot_distance+foot_width)/2])
+                    linear_extrude(foot_width)
+                    polygon([[0,0],
+                                [15,0],
+                                [0,offset]], [[0,1,2]]);
+                }
                 rotate([90,0,0])
                 cylinder(1, r=1);
             }
             rotate([90,0,0]) {
-                translate([-5,bolt_socket_size/2+thickness+mount_width,-bolt_length-mount_offset])
+                translate([-foot_distance/2,bolt_socket_size/2+mount_width+3,-bolt_length-mount_offset])
                     screw_mount_cylinder(bolt_length,bolt_socket_size-mount_width);
-                translate([5,bolt_socket_size/2+thickness+mount_width,-bolt_length-mount_offset])
+                translate([foot_distance/2,bolt_socket_size/2+mount_width+3,-bolt_length-mount_offset])
                     screw_mount_cylinder(bolt_length,bolt_socket_size-mount_width);
             }
         }
@@ -271,15 +294,36 @@ if (show_top_platform) {
         linear_extrude(2)
         polygon(points = [[0,-4],[0,4],[-21,0]], paths = [[0,1,2]]);
 
+        translate([-20,0,0]) 
+        difference() {
+            translate([0,43,-1.5])
+                minkowski() {
+                    cube([8,10,1], true);
+                    cylinder(1,r=4);
+                }
+            translate([0,45+3-7/2-mount_width,-3])
+                cylinder(5, r=2.8);
+        }
+        translate([20,0,0]) 
+        difference() {
+            translate([0,43,-1.5])
+                minkowski() {
+                    cube([8,10,1], true);
+                    cylinder(1,r=4);
+                }
+            translate([0,45+3-7/2-mount_width,-3])
+                cylinder(5, r=2.8);
+        }
+        rotate([0,0,180]) 
         difference() {
             translate([0,40,-1.5])
                 minkowski() {
                     cube([15,5,1], true);
                     cylinder(1,r=4);
                 }
-            translate([-5,45-7/2-mount_width,-3])
+            translate([-6,45-7/2-mount_width,-3])
                 cylinder(5, r=2.8);
-            translate([5,45-7/2-mount_width,-3])
+            translate([6,45-7/2-mount_width,-3])
                 cylinder(5, r=2.8);
         }
     }
@@ -287,7 +331,7 @@ if (show_top_platform) {
 
 if (show_lidar_mount) {
     // Lidar Mount
-    translate([0,45+3,6])
+    translate([0,45+6,6])
         rotate([90,0,0])
-            lidar_mount(60, 10);
+            lidar_mount(40, 60, 10,6);
 }
