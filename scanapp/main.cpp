@@ -1,9 +1,11 @@
-#include "sl_lidar.h" 
-#include "sl_lidar_driver.h"
 
 #include <iostream>
-#include <memory>
 #include <string>
+#include <thread>
+#include <chrono>
+
+#include "servo.h"
+#include "lidar.h"
 
 using namespace sl;
 
@@ -66,29 +68,39 @@ int main(int argc, char const **argv) {
         std::cerr << "Invalid step size " << argv[5] << std::endl;
         return 1;
     }
-    std::cout << "Scanning range: " << range_start << "° to " << range_end << "° in steps of " << step_size << "°" << std::endl;
 
-    Result<IChannel *> chopt = createSerialPortChannel(lidar_port, 115200);
-    if (!chopt) {
-      std::cerr << "Error opening serial port " << lidar_port << std::endl;
+    RPLidar lidar(lidar_port);
+    if (!lidar.connect()) {
+        std::cerr << "Error connecting to Lidar at " << lidar_port << std::endl;
+        return 1;
+    }
+
+    std::string device = lidar.device_info();
+    if (device.empty()) {
+        std::cerr << "Couldn't detect lidar model information" << std::endl;
+        return 1;
+    }
+    std::cout << "Detected Lidar " << device << std::endl;
+
+    Servo servo(servo_port);
+    if (!servo.connect()) {
+      std::cerr << "Error opening serial port " << servo_port << std::endl;
       return 1;
     }
-    std::unique_ptr<IChannel> channel(*chopt);
-    std::unique_ptr<ILidarDriver> lidar(*createLidarDriver());
-    auto res = lidar->connect(channel.get());
-    if (SL_IS_FAIL(res)) {
-        std::cerr << "Failed to get device information from LIDAR " << res << std::endl;
-        return 1;
+    servo.pipe_output(&std::cout);
+
+    lidar.start_scan();
+    std::cout << "Scanning range: " << range_start << "° to " << range_end << "° in steps of " << step_size << "°" << std::endl;
+    for (double d=range_start;d<=range_end;d+=step_size) {
+        servo.set_degree(d);
+        std::cout << "Scanning at " << d << "°... ";
+        //std::this_thread::sleep_for(std::chrono::milliseconds(400));
+        auto points = lidar.scan(1000);
+        std::cout << "done" << std::endl;
+        // TODO: What to do with the points?
     }
-    sl_lidar_response_device_info_t deviceInfo;
-    res = lidar->getDeviceInfo(deviceInfo);
-    if (SL_IS_FAIL(res)){
-        std::cerr << "Failed to connect to LIDAR " << res << std::endl;
-        return 1;
-    }
-    std::cout << "Model: " << deviceInfo.model 
-                << "Firmware Version: " << (deviceInfo.firmware_version >> 8) << "." << (deviceInfo.firmware_version & 0xffu)
-                << std::endl;
+
+    servo.set_degree(0);
 
     return 0;
 }

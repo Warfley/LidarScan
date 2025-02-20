@@ -55,7 +55,7 @@ $(SDK_LIB):
 compile_commands.json: $(ALL_OBJECTS)
 	sed -e '1s/^/[\'$$'\n''/' -e '$$s/,$$/\'$$'\n'']/' $(COMP_COMMANDS) > $@
 
-lib/%.o: src/%.c
+lib/%.o: src/%.cpp $(SDK_LIB)
 	mkdir -p lib cc; \
 	$(CXX) $(CXX_ARGS) $(SDK_INCLUDE) -MJ $(patsubst lib/%.o, cc/%.json, $@) -c $< -o $@
 
