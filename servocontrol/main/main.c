@@ -14,8 +14,8 @@
 #define MIN_VAL 500
 #define MAX_VAL 9000
 
-#define DEFAULT_START 1400
-#define DEFAULT_STOP 8000
+#define DEFAULT_START 1300
+#define DEFAULT_STOP 7800
 
 static char const *TAG = "Servo Control";
 
