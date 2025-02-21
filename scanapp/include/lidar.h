@@ -6,6 +6,7 @@
 #include <string>
 #include <cstdint>
 #include <vector>
+#include <optional>
 
 struct CoordinatePoint {
     double x, y, z;
@@ -27,37 +28,48 @@ private:
     std::unique_ptr<sl::IChannel> channel;
     std::unique_ptr<sl::ILidarDriver> lidar;
 
+    std::optional<sl::LidarScanMode> scan_mode;
+    double rotation_frequency = 0;
+
 public:
     RPLidar(std::string const &_port, std::int32_t _baud=115200) : port(_port), baud(_baud) {}
 
     void disconnect();
     bool connect();
 
-    std::vector<sl::LidarScanMode> scan_modes() const {
+    std::optional<std::vector<sl::LidarScanMode>> scan_modes() const {
+        if (!can_request()) {
+            return {};
+        }
         std::vector<sl::LidarScanMode> result;
         lidar->getAllSupportedScanModes(result);
         return result;
     }
 
-    sl::LidarScanMode default_scan_mode() {
+    std::optional<sl::LidarScanMode> default_scan_mode() {
+        if (!can_request()) {
+            return {};
+        }
         std::uint16_t result;
         lidar->getTypicalScanMode(result);
-        return scan_modes()[result];
+        return scan_modes().value()[result];
     }
 
-    bool start_scan() {
-        return SL_IS_OK(lidar->startScan(0, true));
-    }
+    std::optional<std::string> device_info() const;
 
-    bool start_scan(sl::LidarScanMode const &scan_mode) {
-        return SL_IS_OK(lidar->startScanExpress(false, scan_mode.id));
-    }
+public:
+    bool start_scan();
+    bool start_scan(sl::LidarScanMode const &mode);
 
-    std::string device_info() const;
+    bool stop_scan();
 
-    std::vector<ScanPoint> scan(std::size_t num_points = 8192);
 
-    operator bool() const { return (!!channel && !!lidar && lidar->isConnected() ); }
+    std::optional<std::vector<ScanPoint>> next_frame(int rotations=1);
+
+    bool is_scanning() const { return !!scan_mode; }
+    bool is_connected() const { return !!channel && !!lidar && lidar->isConnected(); }
+    bool can_request() const { return is_connected() && !is_scanning(); }
+    operator bool() const { return is_connected(); }
     std::string const &port_name() const { return port; }
     std::int32_t baud_rate() const { return baud; }
 

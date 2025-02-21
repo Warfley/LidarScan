@@ -75,12 +75,12 @@ int main(int argc, char const **argv) {
         return 1;
     }
 
-    std::string device = lidar.device_info();
-    if (device.empty()) {
+    auto device = lidar.device_info();
+    if (!device) {
         std::cerr << "Couldn't detect lidar model information" << std::endl;
         return 1;
     }
-    std::cout << "Detected Lidar " << device << std::endl;
+    std::cout << "Detected Lidar " << *device << std::endl;
 
     Servo servo(servo_port);
     if (!servo.connect()) {
@@ -94,12 +94,24 @@ int main(int argc, char const **argv) {
     for (double d=range_start;d<=range_end;d+=step_size) {
         servo.set_degree(d);
         std::cout << "Scanning at " << d << "°... ";
-        //std::this_thread::sleep_for(std::chrono::milliseconds(400));
-        auto points = lidar.scan(1000);
+        std::cout.flush();
+        // Wait for the servo to move
+        // FIXME: is this too long?
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        // Grab frame
+        // FIXME: how many rotations should we grab (1 rotation ~1.5k points)
+        auto points = lidar.next_frame();
+        if (!points) {
+            std::cout << "fail... try again" << std::endl;
+            d-=step_size;
+            continue;
+        }
         std::cout << "done" << std::endl;
-        // TODO: What to do with the points?
+        // TODO: Do something with the points
     }
+    lidar.stop_scan();
 
+    // Return to base position
     servo.set_degree(0);
 
     return 0;

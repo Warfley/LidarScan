@@ -14,12 +14,21 @@ CoordinatePoint ScanPoint::to_coordinates(double scan_angle) {
 }
 
 void RPLidar::disconnect() {
+    if (!is_connected()) {
+        return;
+    }
+    if (is_scanning()) {
+        stop_scan();
+    }
     lidar->disconnect();
     lidar = nullptr;
     channel = nullptr;
 }
 
 bool RPLidar::connect() {
+    if (is_connected()) {
+        return false;
+    }
     auto channel_opt = sl::createSerialPortChannel(port, baud);
     if (!channel_opt) {
         return false;
@@ -35,10 +44,13 @@ bool RPLidar::connect() {
     return true;
 }
 
-std::string RPLidar::device_info() const {
+std::optional<std::string> RPLidar::device_info() const {
+    if (!can_request()) {
+        return {};
+    }
     sl_lidar_response_device_info_t info;
     if (SL_IS_FAIL(lidar->getDeviceInfo(info))) {
-        return "";
+        return {};
     }
     std::stringstream ss;
     ss << "Model: " << info.model 
@@ -47,31 +59,86 @@ std::string RPLidar::device_info() const {
     return ss.str();
 }
 
-std::vector<ScanPoint> RPLidar::scan(std::size_t num_points) {
-    std::vector<sl_lidar_response_measurement_node_hq_t> pointbuff;
-    std::vector<ScanPoint> result;
-
-    if (!*this) {
+std::optional<std::vector<ScanPoint>> RPLidar::next_frame(int rotations) {
+    if (!is_connected() || !is_scanning()) {
         return {};
     }
+    static constexpr std::size_t BUFF_SIZE = 2048;
+    auto remaining = (std::size_t)((1000000./scan_mode->us_per_sample) / rotation_frequency * rotations);
+    sl_lidar_response_measurement_node_hq_t buff[BUFF_SIZE];
+    std::vector<ScanPoint> result;
 
-    pointbuff.reserve(num_points);
-    result.reserve(num_points);
+    result.reserve(remaining);
 
-    // TODO: this may get old scan data, as data is continously sent
-    // (also tests indicate that itÄs to fast to be a full scan each call)
-    // So instead probably better solution would be to introduce a scanning thread
-    // which continuously updates a buffer, and after rotation, we wait until the whole
-    // buffer has been refreshed
-    lidar->grabScanDataHq(pointbuff.data(), num_points);
-    
-    for (auto p : pointbuff) {
-        result.emplace_back(ScanPoint{
-            p.angle_z_q14 * 90. / (1 << 14),
-            p.dist_mm_q2 / 1000.,
-            p.quality
-        });
+    // FIXME: Do I need to throw away the first batch because it may be outdated?
+    while (remaining > 0) {
+        // read buffer or less
+        auto scan_count = remaining > BUFF_SIZE
+                        ? BUFF_SIZE
+                        : remaining;
+        auto res = lidar->grabScanDataHq(buff, scan_count);
+
+        if (SL_IS_FAIL(res)) {
+            return {};
+        }
+
+        for (std::size_t i=0; i<scan_count; ++i) {
+            result.emplace_back(ScanPoint{
+                buff[i].angle_z_q14 * 90. / (1<<14),
+                buff[i].dist_mm_q2 / 1000.,
+                buff[i].quality
+            });
+        }
+        remaining -= scan_count;
     }
-
     return result;
-};
+}
+
+bool RPLidar::start_scan() {
+    if (!can_request()) {
+        return false;
+    }
+    sl::LidarMotorInfo motor_info;
+    sl::LidarScanMode selected_mode;
+    auto res = lidar->getMotorInfo(motor_info);
+    if (SL_IS_FAIL(res)) {
+        return false;
+    }
+    res = lidar->startScan(false, true, 0, &selected_mode);
+    if (SL_IS_FAIL(res)) {
+        return false;
+    }
+    scan_mode=selected_mode;
+    rotation_frequency = motor_info.desired_speed/60.;
+    return true;
+}
+
+bool RPLidar::start_scan(sl::LidarScanMode const &mode) {
+    if (!can_request()) {
+        return false;
+    }
+    sl::LidarMotorInfo motor_info;
+    sl::LidarScanMode selected_mode;
+    auto res = lidar->getMotorInfo(motor_info);
+    if (SL_IS_FAIL(res)) {
+        return false;
+    }
+    res = lidar->startScanExpress(false, mode.id, 0, &selected_mode);
+    if (SL_IS_FAIL(res)) {
+        return false;
+    }
+    scan_mode=selected_mode;
+    rotation_frequency = motor_info.desired_speed/60.;
+    return true;
+}
+
+bool RPLidar::stop_scan() {
+    if (!is_scanning()) {
+        return false;
+    }
+    lidar->stop();
+    scan_mode = {};
+    rotation_frequency = 0;
+    return true;
+}
+
