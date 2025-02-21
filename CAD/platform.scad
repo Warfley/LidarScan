@@ -1,7 +1,9 @@
-show_tripod_mount=false;
-show_bottom_platform=false;
+show_tripod_mount=true;
+show_bottom_platform=true;
 show_top_platform=true;
 show_lidar_mount=true;
+show_beam1=true;
+show_beam2=true;
 
 // Extra width for mount: 1mm
 mount_width = 1;
@@ -173,14 +175,14 @@ module measurement_ring(w,h,screw_distance,screw_socket_size=/*M3*/3.7) {
     }
 }
 
-module lidar_mount(foot_distance,offset,bolt_length,thickness=3,center_offset=10,bolt_size=6,bolt_socket_size=/*M5*/7,screw_distance_h=70,screw_distance_w1=56,screw_distance_w2=40,screw_size=/*M2.5*/2.7,screw_head_size=3.5) {
+module lidar_mount(foot_distance,offset,bolt_length,thickness=3,center_offset=10,bolt_size=6,bolt_socket_size=/*M5*/7,screw_distance_h=70,screw_distance_w1=56,screw_distance_w2=40,screw_size=/*M2.5*/2.7,screw_head_size=4.5) {
     foot_width = bolt_socket_size+mount_width*2;
     union() {
         s2_offset = (screw_distance_w1-screw_distance_w2) / 2;
         rotate([90,0,0]) {
-            translate([-foot_distance/2,bolt_socket_size/2+mount_width+3,-bolt_length-mount_offset])
+            translate([-foot_distance/2,bolt_socket_size/2+mount_width+thickness-3,-bolt_length-mount_offset])
                 screw_mount(bolt_length,bolt_socket_size);
-            translate([foot_distance/2,bolt_socket_size/2+mount_width+3,-bolt_length-mount_offset])
+            translate([foot_distance/2,bolt_socket_size/2+mount_width+thickness-3,-bolt_length-mount_offset])
                 screw_mount(bolt_length,bolt_socket_size);
         }
         difference() {
@@ -214,9 +216,9 @@ module lidar_mount(foot_distance,offset,bolt_length,thickness=3,center_offset=10
                 cylinder(h=thickness,r=screw_size/2);
                 cylinder(h=thickness-3,r=screw_head_size/2);
             }
-            translate([-bolt_size,offset+screw_distance_w1+36-foot_width]) 
+            translate([-bolt_size,offset+screw_distance_w1+36-foot_width])
                 cylinder(thickness, r=bolt_size/2);
-            translate([bolt_size,offset+screw_distance_w1+36-foot_width]) 
+            translate([bolt_size,offset+screw_distance_w1+36-foot_width])
                 cylinder(thickness, r=bolt_size/2);
         }
         difference() {
@@ -239,14 +241,97 @@ module lidar_mount(foot_distance,offset,bolt_length,thickness=3,center_offset=10
                 cylinder(1, r=1);
             }
             rotate([90,0,0]) {
-                translate([-foot_distance/2,bolt_socket_size/2+mount_width+3,-bolt_length-mount_offset])
+                translate([-foot_distance/2,bolt_socket_size/2+mount_width+thickness-3,-bolt_length-mount_offset])
                     screw_mount_cylinder(bolt_length,bolt_socket_size-mount_width);
-                translate([foot_distance/2,bolt_socket_size/2+mount_width+3,-bolt_length-mount_offset])
+                translate([foot_distance/2,bolt_socket_size/2+mount_width+thickness-3,-bolt_length-mount_offset])
                     screw_mount_cylinder(bolt_length,bolt_socket_size-mount_width);
             }
         }
     }
 }
+
+module beam(length, double_ended=true, thinning=5, thickness=3, bolt_length=10, bolt_socket_size=/*M5*/7) {
+    width = (bolt_socket_size+mount_width*2)*2+5;
+    offset = bolt_length*2;
+    union() {
+        difference() {
+            union() {
+                translate([0,length/2,thickness/2])
+                    cube([width,length,thickness],true);
+                    minkowski() {
+                        rotate([0,-90,0])
+                        translate([1.5,1,-width/2+1])
+                        linear_extrude(width-2)
+                            polygon([[0,0],
+                                        [bolt_socket_size+mount_width*2,0],
+                                        [0,offset]], [[0,1,2]]);
+                        rotate([90,0,0])
+                        cylinder(1, r=1);
+                    }
+                    if (double_ended) {
+                        translate([0,length,0])
+                        rotate([0,0,180]) {
+                            minkowski() {
+                                rotate([0,-90,0])
+                                translate([1.5,1,-width/2+1])
+                                linear_extrude(width-2)
+                                    polygon([[0,0],
+                                                [bolt_socket_size+mount_width*2,0],
+                                                [0,offset]], [[0,1,2]]);
+                                rotate([90,0,0])
+                                cylinder(1, r=1);
+                            }
+                        }
+                    }
+            }
+            translate([0,bolt_length+mount_width,bolt_socket_size/2+mount_width+1])
+            rotate([90,0,0]) {
+                translate([-6,0,0])
+                    screw_mount_cylinder(bolt_length, bolt_socket_size);
+                translate([6,0,0])
+                    screw_mount_cylinder(bolt_length, bolt_socket_size);
+            }
+            if (double_ended) {
+                translate([0,length,0])
+                rotate([0,0,180])
+                translate([0,bolt_length+mount_width,bolt_socket_size/2+mount_width+1])
+                rotate([90,0,0]) {
+                    translate([-6,0,0])
+                        screw_mount_cylinder(bolt_length, bolt_socket_size);
+                    translate([6,0,0])
+                        screw_mount_cylinder(bolt_length, bolt_socket_size);
+                }
+            }
+            if (thinning>0) {
+                translate([width/2,length/2,0])
+                scale([(width-thinning)/2,(length-offset*2)/2,1])
+                cylinder(thickness, r=1);
+                translate([-width/2,length/2,0])
+                scale([(width-thinning)/2,(length-offset*2)/2,1])
+                cylinder(thickness, r=1);
+            }
+        }
+        translate([0,bolt_length+mount_width,bolt_socket_size/2+mount_width+1])
+        rotate([90,0,0]) {
+            translate([-6,0,0])
+                screw_mount(bolt_length, bolt_socket_size);
+            translate([6,0,0])
+                screw_mount(bolt_length, bolt_socket_size);
+        }
+        if (double_ended) {
+            translate([0,length,0])
+            rotate([0,0,180])
+            translate([0,bolt_length+mount_width,bolt_socket_size/2+mount_width+1])
+            rotate([90,0,0]) {
+                translate([-6,0,0])
+                    screw_mount(bolt_length, bolt_socket_size);
+                translate([6,0,0])
+                    screw_mount(bolt_length, bolt_socket_size);
+            }
+        }
+    }
+}
+
 
 if (show_bottom_platform) {
 translate([0,0,-8])
@@ -294,44 +379,82 @@ if (show_top_platform) {
         linear_extrude(2)
         polygon(points = [[0,-4],[0,4],[-21,0]], paths = [[0,1,2]]);
 
-        translate([-20,0,0]) 
+        translate([-17,0,0])
         difference() {
-            translate([0,43,-1.5])
-                minkowski() {
-                    cube([8,10,1], true);
-                    cylinder(1,r=4);
+            translate([0,42.25,0])
+                union() {
+                    rotate([0,-90,0])
+                    translate([-2,-10,-8])
+                    linear_extrude(16)
+                        polygon([[0,0],[0,5],[5,5],[5,0],[0,-25]], [[0,1,2,3,4]]);
+                    minkowski() {
+                        cube([8,10,4], true);
+                        cylinder(1,r=4);
+                    }
                 }
             translate([0,45+3-7/2-mount_width,-3])
-                cylinder(5, r=2.8);
+                cylinder(6, r=2.8);
         }
-        translate([20,0,0]) 
+        translate([17,0,0])
         difference() {
-            translate([0,43,-1.5])
-                minkowski() {
-                    cube([8,10,1], true);
-                    cylinder(1,r=4);
+            translate([0,42.25,0])
+                union() {
+                    rotate([0,-90,0])
+                    translate([-2,-10,-8])
+                    linear_extrude(16)
+                        polygon([[0,0],[0,5],[5,5],[5,0],[0,-25]], [[0,1,2,3,4]]);
+                    minkowski() {
+                        cube([8,10,4], true);
+                        cylinder(1,r=4);
+                    }
                 }
             translate([0,45+3-7/2-mount_width,-3])
-                cylinder(5, r=2.8);
+                cylinder(6, r=2.8);
         }
-        rotate([0,0,180]) 
+        rotate([0,0,180])
         difference() {
-            translate([0,40,-1.5])
-                minkowski() {
-                    cube([15,5,1], true);
-                    cylinder(1,r=4);
+            translate([0,40,0])
+                union() {
+                    rotate([0,-90,0])
+                    translate([-2,-7.25,-11.5])
+                    linear_extrude(23)
+                        polygon([[0,0],[0,5],[5,5],[5,0],[1.5,-20]], [[0,1,2,3,4]]);
+                    minkowski() {
+                        cube([15,5,4], true);
+                        cylinder(1,r=4);
+                    }
                 }
             translate([-6,45-7/2-mount_width,-3])
-                cylinder(5, r=2.8);
+                cylinder(6, r=2.8);
             translate([6,45-7/2-mount_width,-3])
-                cylinder(5, r=2.8);
+                cylinder(6, r=2.8);
         }
     }
 }
 
 if (show_lidar_mount) {
     // Lidar Mount
-    translate([0,45+6,6])
+    translate([0,45+5,6])
         rotate([90,0,0])
-            lidar_mount(40, 60, 10,6);
+            lidar_mount(34, 60, 10, 5);
+}
+
+if (show_beam1) {
+    translate([0,0,6])
+    translate([0,-40-7/2-mount_width-1,3])
+    rotate([90,0,180])
+    difference() {
+        beam(60+56+30,false,0);
+        translate([-6,50+56+30+3.5+mount_width,0])
+            cylinder(3,r=3);
+        translate([6,50+56+30+3.5+mount_width,0])
+            cylinder(3,r=3);
+    }
+}
+
+if (show_beam2) {
+    translate([0,0,6])
+    translate([0,-40-7/2-mount_width-1,3+60+56+30])
+    rotate([180,0,180])
+        beam(45+40+7/2+mount_width+1);
 }
