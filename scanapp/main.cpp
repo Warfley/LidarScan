@@ -3,6 +3,7 @@
 #include <string>
 #include <thread>
 #include <chrono>
+#include <fstream>
 
 #include "servo.h"
 #include "lidar.h"
@@ -47,25 +48,26 @@ bool parse_float(char const *s, double *out) {
 }
 
 int main(int argc, char const **argv) {
-    if (argc < 3) {
-        std::cerr << "Usage: " << argv[0] << " LIDAR_PORT SERVO_PORT [RangeStart] [RangeEnd] [StepSize]" << std::endl;
+    if (argc < 4) {
+        std::cerr << "Usage: " << argv[0] << "OUTPUT_FILE LIDAR_PORT SERVO_PORT [RangeStart] [RangeEnd] [StepSize]" << std::endl;
         return 1;
     }
-    std::string lidar_port{argv[1]};
-    std::string servo_port{argv[2]};
+    std::string output_file{argv[1]};
+    std::string lidar_port{argv[2]};
+    std::string servo_port{argv[3]};
     double range_start = 0;
     double range_end = 180;
     double step_size = 1;
-    if (argc >= 4 && (!parse_float(argv[3], &range_start) || range_start > 180)) {
-        std::cerr << "Scanning range must be between 0 and 180, invalid value " << argv[3] << std::endl;
-        return 1;
-    }
-    if (argc >= 5 && (!parse_float(argv[4], &range_end) || range_end > 180 || range_end <= range_start)) {
+    if (argc >= 5 && (!parse_float(argv[4], &range_start) || range_start > 180)) {
         std::cerr << "Scanning range must be between 0 and 180, invalid value " << argv[4] << std::endl;
         return 1;
     }
-    if (argc >= 6 && !parse_float(argv[5], &step_size)) {
-        std::cerr << "Invalid step size " << argv[5] << std::endl;
+    if (argc >= 6 && (!parse_float(argv[5], &range_end) || range_end > 180 || range_end <= range_start)) {
+        std::cerr << "Scanning range must be between 0 and 180, invalid value " << argv[5] << std::endl;
+        return 1;
+    }
+    if (argc >= 7 && !parse_float(argv[6], &step_size)) {
+        std::cerr << "Invalid step size " << argv[6] << std::endl;
         return 1;
     }
 
@@ -89,6 +91,12 @@ int main(int argc, char const **argv) {
     }
     servo.pipe_output(&std::cout);
 
+    std::ofstream outp(output_file);
+    outp << "{\n"
+         << "  \"start\": " << range_start << ",\n"
+         << "  \"stop\": "  << range_end   << ",\n"
+         << "  \"step\": "  << step_size   << ",\n"
+         << "  \"points\": [\n";
     lidar.start_scan();
     std::cout << "Scanning range: " << range_start << "° to " << range_end << "° in steps of " << step_size << "°" << std::endl;
     for (double d=range_start;d<=range_end;d+=step_size) {
@@ -106,9 +114,29 @@ int main(int argc, char const **argv) {
             d-=step_size;
             continue;
         }
-        std::cout << "done" << std::endl;
-        // TODO: Do something with the points
+        for (std::size_t i=0;i<points->size();++i) {
+            auto p = points.value()[i];
+            outp << "    {\n";
+            outp << "      \"pitch\": "    << p.angle << ",\n"
+                 << "      \"yaw\": "      << d << ",\n"
+                 << "      \"distance\": " << p.distance << ",\n";
+            auto coord = p.to_coordinates(d);
+            outp << "      \"x\": " << coord.x << ",\n"
+                 << "      \"y\": " << coord.y << ",\n"
+                 << "      \"z\": " << coord.z << ",\n";
+            outp << "      \"quality\": "  << static_cast<int>(p.quality) << "\n"
+                 << "    }";
+            if (i<points->size()-1) {
+                outp << ",\n";
+            }
+        }
+        if (d+step_size<=range_end) {
+            outp << ",\n";
+        }
     }
+    outp << "\n"
+         << "  ]\n"
+         << "}";
     lidar.stop_scan();
 
     // Return to base position

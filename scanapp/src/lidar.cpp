@@ -5,11 +5,15 @@
 #include <cmath>
 #include <sstream>
 
+constexpr inline double deg_to_rad(double deg) {
+    return deg * (M_PI / 180);
+}
+
 CoordinatePoint ScanPoint::to_coordinates(double scan_angle) {
-    double z = std::sin(angle) * distance;
-    double d2 = std::cos(angle) * distance;
-    double y = std::sin(scan_angle) * d2;
-    double x = std::cos(scan_angle) * d2;
+    double z = std::sin(deg_to_rad(angle)) * distance;
+    double d2 = std::cos(deg_to_rad(angle)) * distance;
+    double y = std::sin(deg_to_rad(scan_angle)) * d2;
+    double x = std::cos(deg_to_rad(scan_angle)) * d2;
     return {x,y,z};
 }
 
