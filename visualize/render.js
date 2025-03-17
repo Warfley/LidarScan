@@ -29,10 +29,12 @@ function update_points(points) {
         if (point["quality"] === 0) {
             continue;
         }
-        let z = -Math.sin(point["pitch"] / 180 * Math.PI) * point["distance"];
-        let d2 = Math.cos(point["pitch"] / 180 * Math.PI) * point["distance"];
-        let y = Math.sin(point["yaw"] / 180 * Math.PI) * d2;
-        let x = Math.cos(point["yaw"] / 180 * Math.PI) * d2;
+        let pitch = point["pitch"];
+        let yaw = point["yaw"];
+        let z = -Math.sin(pitch / 180 * Math.PI) * point["distance"] / 32;
+        let d2 = Math.cos(pitch / 180 * Math.PI) * point["distance"] / 32;
+        let y = Math.sin(yaw / 180 * Math.PI) * d2;
+        let x = Math.cos(yaw / 180 * Math.PI) * d2;
         coords.push(x,y,z);
         colors.push(1,1,1,point["quality"]/255);
         ++count;
@@ -112,7 +114,7 @@ function setup_shader(gl) {
         "attribute vec3 coordinates;" +
         "void main(void) {" +
             " gl_Position = vec4(coordinates, 1.0);" +
-            "gl_PointSize = 10.0;"+
+            "gl_PointSize = 1.0;"+
         "}";
     let vertex_shader = gl.createShader(gl.VERTEX_SHADER);
     gl.shaderSource(vertex_shader, vertex_shader_code);
@@ -121,7 +123,7 @@ function setup_shader(gl) {
     // Create fragment shader
     let fragment_shader_code =
         "void main(void) {" +
-            " gl_FragColor = vec4(1.0, 1.0, 1.0, 0.5);" +
+            " gl_FragColor = vec4(1.0, 1.0, 1.0, 0.2);" +
         "}";
     let fragment_shader = gl.createShader(gl.FRAGMENT_SHADER);
         gl.shaderSource(fragment_shader, fragment_shader_code);
@@ -180,6 +182,7 @@ function start_rendering(restart) {
         requestAnimationFrame(draw);
         gl.clearColor(0,0,0,1);
         gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.enable(gl.DEPTH_TEST);
         gl.drawArrays(gl.POINTS, 0, pointcount);
     }
     if (!restart) {

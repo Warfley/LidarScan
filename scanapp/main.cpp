@@ -119,12 +119,8 @@ int main(int argc, char const **argv) {
             outp << "    {\n";
             outp << "      \"pitch\": "    << p.angle << ",\n"
                  << "      \"yaw\": "      << d << ",\n"
-                 << "      \"distance\": " << p.distance << ",\n";
-            auto coord = p.to_coordinates(d);
-            outp << "      \"x\": " << coord.x << ",\n"
-                 << "      \"y\": " << coord.y << ",\n"
-                 << "      \"z\": " << coord.z << ",\n";
-            outp << "      \"quality\": "  << static_cast<int>(p.quality) << "\n"
+                 << "      \"distance\": " << p.distance << ",\n"
+                 << "      \"quality\": "  << static_cast<int>(p.quality) << "\n"
                  << "    }";
             if (i<points->size()-1) {
                 outp << ",\n";
