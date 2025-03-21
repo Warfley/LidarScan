@@ -1,0 +1,157 @@
+object Form1: TForm1
+  Left = 200
+  Height = 667
+  Top = 0
+  Width = 1009
+  Caption = 'Form1'
+  ClientHeight = 667
+  ClientWidth = 1009
+  DesignTimePPI = 110
+  object Renderer: TOpenGLControl
+    Left = 0
+    Height = 628
+    Top = 39
+    Width = 1009
+    Align = alClient
+    OnMouseDown = RendererMouseDown
+    OnMouseMove = RendererMouseMove
+    OnMouseWheel = RendererMouseWheel
+    OnPaint = RendererPaint
+  end
+  object Panel1: TPanel
+    Left = 0
+    Height = 39
+    Top = 0
+    Width = 1009
+    Align = alTop
+    BevelOuter = bvNone
+    ClientHeight = 39
+    ClientWidth = 1009
+    TabOrder = 1
+    object LoadButton: TButton
+      Left = 923
+      Height = 39
+      Top = 0
+      Width = 86
+      Align = alRight
+      Caption = 'Load'
+      TabOrder = 0
+      OnClick = LoadButtonClick
+    end
+    object RotationsEdit: TEdit
+      Left = 334
+      Height = 39
+      Top = 0
+      Width = 50
+      Align = alLeft
+      TabOrder = 1
+      Text = '1'
+    end
+    object RangeStepEdit: TEdit
+      Left = 206
+      Height = 39
+      Top = 0
+      Width = 50
+      Align = alLeft
+      TabOrder = 2
+      Text = '1'
+    end
+    object RangeEndEdit: TEdit
+      Left = 105
+      Height = 39
+      Top = 0
+      Width = 50
+      Align = alLeft
+      TabOrder = 3
+      Text = '180'
+    end
+    object RangeStartEdit: TEdit
+      Left = 50
+      Height = 39
+      Top = 0
+      Width = 50
+      Align = alLeft
+      TabOrder = 4
+      Text = '0'
+    end
+    object Label1: TLabel
+      Left = 0
+      Height = 39
+      Top = 0
+      Width = 50
+      Align = alLeft
+      Caption = 'Range: '
+      Layout = tlCenter
+    end
+    object Label2: TLabel
+      Left = 256
+      Height = 39
+      Top = 0
+      Width = 78
+      Align = alLeft
+      Caption = '  Rotations: '
+      Layout = tlCenter
+    end
+    object Label3: TLabel
+      Left = 155
+      Height = 39
+      Top = 0
+      Width = 51
+      Align = alLeft
+      Caption = '  Steps: '
+      Layout = tlCenter
+    end
+    object Label4: TLabel
+      Left = 100
+      Height = 39
+      Top = 0
+      Width = 5
+      Align = alLeft
+      Caption = '-'
+      Layout = tlCenter
+    end
+    object PPSEdit: TEdit
+      Left = 500
+      Height = 39
+      Top = 0
+      Width = 50
+      Align = alLeft
+      ReadOnly = True
+      TabOrder = 5
+    end
+    object Label5: TLabel
+      Left = 384
+      Height = 39
+      Top = 0
+      Width = 116
+      Align = alLeft
+      Caption = '  Points Per Scan: '
+      Layout = tlCenter
+    end
+    object BacksideCheckbox: TCheckBox
+      Left = 550
+      Height = 39
+      Top = 0
+      Width = 85
+      Align = alLeft
+      Caption = 'Backside'
+      Checked = True
+      State = cbChecked
+      TabOrder = 6
+    end
+    object NormalizeCheckbox: TCheckBox
+      Left = 635
+      Height = 39
+      Top = 0
+      Width = 149
+      Align = alLeft
+      Caption = 'Normalize Density'
+      TabOrder = 7
+    end
+  end
+  object OpenDatFileDialog: TOpenDialog
+    Filter = 'Binary Scan Data|*.dat'
+    Left = 92
+    Top = 92
+  end
+end

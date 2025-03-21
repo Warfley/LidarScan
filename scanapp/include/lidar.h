@@ -8,16 +8,10 @@
 #include <vector>
 #include <optional>
 
-struct CoordinatePoint {
-    double x, y, z;
-};
-
 struct ScanPoint {
-    double angle;
+    double pitch;
     double distance;
     std::uint8_t quality;
-
-    CoordinatePoint to_coordinates(double scan_angle);
 };
 
 class RPLidar {
@@ -28,6 +22,7 @@ private:
     std::unique_ptr<sl::IChannel> channel;
     std::unique_ptr<sl::ILidarDriver> lidar;
 
+public:
     std::optional<sl::LidarScanMode> scan_mode;
     double rotation_frequency = 0;
 
@@ -64,7 +59,7 @@ public:
     bool stop_scan();
 
 
-    std::optional<std::vector<ScanPoint>> next_frame(int rotations=1);
+    std::optional<std::vector<ScanPoint>> next_frame(double rotations=1);
 
     bool is_scanning() const { return !!scan_mode; }
     bool is_connected() const { return !!channel && !!lidar && lidar->isConnected(); }

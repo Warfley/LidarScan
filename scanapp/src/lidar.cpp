@@ -5,18 +5,6 @@
 #include <cmath>
 #include <sstream>
 
-constexpr inline double deg_to_rad(double deg) {
-    return deg * (M_PI / 180);
-}
-
-CoordinatePoint ScanPoint::to_coordinates(double scan_angle) {
-    double z = std::sin(deg_to_rad(angle)) * distance;
-    double d2 = std::cos(deg_to_rad(angle)) * distance;
-    double y = std::sin(deg_to_rad(scan_angle)) * d2;
-    double x = std::cos(deg_to_rad(scan_angle)) * d2;
-    return {x,y,z};
-}
-
 void RPLidar::disconnect() {
     if (!is_connected()) {
         return;
@@ -63,7 +51,7 @@ std::optional<std::string> RPLidar::device_info() const {
     return ss.str();
 }
 
-std::optional<std::vector<ScanPoint>> RPLidar::next_frame(int rotations) {
+std::optional<std::vector<ScanPoint>> RPLidar::next_frame(double rotations) {
     if (!is_connected() || !is_scanning()) {
         return {};
     }
