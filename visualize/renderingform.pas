@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ExtCtrls, StdCtrls,
-  ComCtrls, process, OpenGLContext, gl, Math, Types, optionsform;
+  ComCtrls, process, openglcontext, gl, Math, Types, optionsform;
 
 type
   TPointData = record
@@ -205,6 +205,8 @@ begin
   ptAlpha:=1.0;
   glClearColor((bgRGB mod 256)/$FF, ((bgRGB shr 8) mod 256)/$FF, ((bgRGB shr 16) mod 256)/$FF, 1.0);
   glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
+  glMatrixMode(GL_PROJECTION);
+  glViewport(0,0,Renderer.ClientWidth,renderer.ClientHeight);
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity;
   glScaled(FScale,FScale,FScale);
