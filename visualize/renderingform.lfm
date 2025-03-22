@@ -44,6 +44,7 @@ object Form1: TForm1
       Top = 0
       Width = 50
       Align = alLeft
+      ReadOnly = True
       TabOrder = 1
       Text = '1'
     end
@@ -53,6 +54,7 @@ object Form1: TForm1
       Top = 0
       Width = 50
       Align = alLeft
+      ReadOnly = True
       TabOrder = 2
       Text = '1'
     end
@@ -62,6 +64,7 @@ object Form1: TForm1
       Top = 0
       Width = 50
       Align = alLeft
+      ReadOnly = True
       TabOrder = 3
       Text = '180'
     end
@@ -71,6 +74,7 @@ object Form1: TForm1
       Top = 0
       Width = 50
       Align = alLeft
+      ReadOnly = True
       TabOrder = 4
       Text = '0'
     end
@@ -128,30 +132,45 @@ object Form1: TForm1
       Caption = '  Points Per Scan: '
       Layout = tlCenter
     end
-    object BacksideCheckbox: TCheckBox
+    object OptionsButton: TButton
       Left = 550
       Height = 39
       Top = 0
-      Width = 85
+      Width = 86
       Align = alLeft
-      Caption = 'Backside'
-      Checked = True
-      State = cbChecked
+      Caption = 'Options'
       TabOrder = 6
+      OnClick = OptionsButtonClick
     end
-    object NormalizeCheckbox: TCheckBox
-      Left = 635
+    object ScanButton: TButton
+      Left = 837
       Height = 39
       Top = 0
-      Width = 149
-      Align = alLeft
-      Caption = 'Normalize Density'
+      Width = 86
+      Align = alRight
+      Caption = 'Scan'
       TabOrder = 7
+      OnClick = ScanButtonClick
+    end
+    object ProgressBar1: TProgressBar
+      Left = 636
+      Height = 39
+      Top = 0
+      Width = 201
+      Align = alClient
+      TabOrder = 8
     end
   end
   object OpenDatFileDialog: TOpenDialog
     Filter = 'Binary Scan Data|*.dat'
     Left = 92
     Top = 92
+  end
+  object ScanTimer: TTimer
+    Enabled = False
+    Interval = 50
+    OnTimer = ScanTimerTimer
+    Left = 16
+    Top = 16
   end
 end

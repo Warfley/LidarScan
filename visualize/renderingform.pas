@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ExtCtrls, StdCtrls,
-  OpenGLContext, gl, Math, Types;
+  ComCtrls, process, OpenGLContext, gl, Math, Types, optionsform;
 
 type
   TPointData = record
@@ -27,8 +27,9 @@ type
 
   TForm1 = class(TForm)
     LoadButton: TButton;
-    BacksideCheckbox: TCheckBox;
-    NormalizeCheckbox: TCheckBox;
+    ProgressBar1: TProgressBar;
+    ScanButton: TButton;
+    OptionsButton: TButton;
     OpenDatFileDialog: TOpenDialog;
     RotationsEdit: TEdit;
     RangeStepEdit: TEdit;
@@ -42,7 +43,9 @@ type
     Label5: TLabel;
     Renderer: TOpenGLControl;
     Panel1: TPanel;
+    ScanTimer: TTimer;
     procedure LoadButtonClick(Sender: TObject);
+    procedure OptionsButtonClick(Sender: TObject);
     procedure RendererMouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure RendererMouseMove(Sender: TObject; Shift: TShiftState; X,
@@ -50,7 +53,11 @@ type
     procedure RendererMouseWheel(Sender: TObject; Shift: TShiftState;
       WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean);
     procedure RendererPaint(Sender: TObject);
+    procedure ScanButtonClick(Sender: TObject);
+    procedure ScanTimerTimer(Sender: TObject);
   private
+    FScanProcess: TProcess;
+
     FPoints: TPointDataArray;
     FScale: Double;
     FRotX: Double;
@@ -67,31 +74,8 @@ implementation
 
 {$R *.lfm}
 
-{ TForm1 }
 
-procedure TForm1.RendererPaint(Sender: TObject);
-var
-  p: TPointData;
-begin
-  glClearColor(0.27, 0.53, 0.71, 1.0);
-  glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
-  glMatrixMode(GL_MODELVIEW);
-  glLoadIdentity;
-  glScaled(FScale,FScale,FScale);
-  glRotatef(FRotX,0,1,0);
-  glRotatef(FRotY,1,0,0);
-  glBegin(GL_POINTS);
-  for p in FPoints do
-  begin
-    glPointSize(4);
-    glColor4d(1,1,1,p.Quality);
-    glVertex3d(p.X,p.Y,p.Z);
-  end;
-  glEnd;
-  Renderer.SwapBuffers;
-end;
-
-function ReadDatFile(const FileName: String; out ScanData: TScanData; Backside:Boolean): Boolean;
+function ReadDatFile(const FileName: String; out ScanData: TScanData; const Filters: TFilterRanges): Boolean;
 
 function CheckHeader(fs: TFileStream): Boolean; inline;
 var
@@ -137,6 +121,23 @@ begin
   Result.Quality:=p.Quality/255;
 end;
 
+function inFilter(pitch: Double): Boolean;
+var
+  range: Array[0..1] of Double;
+begin
+  if Length(Filters) = 0 then
+    Exit(True);
+  Result:=False;
+  for range in Filters do
+    if range[0]<=range[1] then
+    begin
+      if (pitch>=range[0]) and (pitch<=range[1]) then
+        Exit(True);
+    end
+    else if (pitch>=range[0]) or (pitch<=range[1]) then
+      Exit(True);
+end;
+
 var
   fs: TFileStream;
   buff: array[0..4095 div sizeof(TPointRecord)] of TPointRecord;
@@ -178,8 +179,7 @@ begin
           Exit;
         end;
       end;
-      if (buff[ReadHead].Quality>0) and (buff[ReadHead].Distance>0) and
-         (Backside or ((buff[ReadHead].Pitch<=90) or (buff[ReadHead].Pitch>=270))) then
+      if (buff[ReadHead].Quality>0) and (buff[ReadHead].Distance>0) and inFilter(buff[ReadHead].Pitch) then
       begin
         ScanData.Points[WriteHead]:=ConvertPoint(buff[ReadHead]);
         Inc(WriteHead);
@@ -192,13 +192,128 @@ begin
   Result := True;
 end;
 
-procedure TForm1.LoadButtonClick(Sender: TObject);
+{ TForm1 }
+
+procedure TForm1.RendererPaint(Sender: TObject);
 var
+  p: TPointData;
+  bgRGB, ptRGB: LongInt;
+  ptAlpha: Double;
+begin
+  bgRGB:=ColorToRGB(OptionsDialog.RenderingOptions.BackgroundColor);
+  ptRGB:=ColorToRGB(OptionsDialog.RenderingOptions.PointColor);
+  ptAlpha:=1.0;
+  glClearColor((bgRGB mod 256)/$FF, ((bgRGB shr 8) mod 256)/$FF, ((bgRGB shr 16) mod 256)/$FF, 1.0);
+  glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
+  glMatrixMode(GL_MODELVIEW);
+  glLoadIdentity;
+  glScaled(FScale,FScale,FScale);
+  glRotatef(FRotX,0,1,0);
+  glRotatef(FRotY,1,0,0);
+  glBegin(GL_POINTS);
+  for p in FPoints do
+  begin
+    glPointSize(4);
+    if OptionsDialog.RenderingOptions.AlphaQuality then
+      ptAlpha:=p.Quality;
+    glColor4d((ptRGB mod 256)/$FF, ((ptRGB shr 8) mod 256)/$FF, ((ptRGB shr 16) mod 256)/$FF,ptAlpha);
+    glVertex3d(p.X,p.Y,p.Z);
+  end;
+  glEnd;
+  Renderer.SwapBuffers;
+end;
+
+procedure TForm1.ScanButtonClick(Sender: TObject);
+var
+  formatOpts: TFormatSettings;
+  i: Integer;
+begin
+  if ScanButton.Tag=0 then
+  begin
+    ScanButton.Caption:='Stop';
+    ScanButton.Tag:=1;
+    ProgressBar1.Min:=Trunc(OptionsDialog.ScanOptions.RangeStart);
+    ProgressBar1.Max:=Trunc(OptionsDialog.ScanOptions.RangeEnd);
+    ProgressBar1.Position:=ProgressBar1.Min;
+
+    formatOpts:=FormatSettings;
+    formatOpts.DecimalSeparator:='.';
+    formatOpts.ThousandSeparator:='_';
+
+    FScanProcess:=TProcess.Create(Self);
+    FScanProcess.Executable:=OptionsDialog.ScanOptions.ScanApp;
+    FScanProcess.Parameters.Clear;
+    FScanProcess.Parameters.Add(OptionsDialog.ScanOptions.LidarPort);
+    FScanProcess.Parameters.Add(OptionsDialog.ScanOptions.ServoPort);
+    FScanProcess.Parameters.Add('-f');
+    FScanProcess.Parameters.Add(FloatToStr(OptionsDialog.ScanOptions.RangeStart, formatOpts));
+    FScanProcess.Parameters.Add('-t');
+    FScanProcess.Parameters.Add(FloatToStr(OptionsDialog.ScanOptions.RangeEnd, formatOpts));
+    FScanProcess.Parameters.Add('-s');
+    FScanProcess.Parameters.Add(FloatToStr(OptionsDialog.ScanOptions.RangeStep, formatOpts));
+    FScanProcess.Parameters.Add('-r');
+    FScanProcess.Parameters.Add(FloatToStr(OptionsDialog.ScanOptions.Rotations, formatOpts));
+    FScanProcess.Parameters.Add('-b');
+    FScanProcess.Parameters.Add(OptionsDialog.ScanOptions.DatFile);
+    FScanProcess.Options:=FScanProcess.Options+[poUsePipes];
+    FScanProcess.Execute;
+    ScanTimer.Enabled:=True;
+  end
+  else
+  begin
+    FScanProcess.Terminate(1);
+  end;
+end;
+
+procedure TForm1.ScanTimerTimer(Sender: TObject);
+var
+  sl: TStringList;
+  line: String;
+  deg, i: Integer;
   ScanData: TScanData;
 begin
-  if not OpenDatFileDialog.Execute then
+  if not Assigned(FScanProcess) then
     Exit;
-  if not ReadDatFile(OpenDatFileDialog.FileName, ScanData, BacksideCheckbox.Checked) then
+
+  if FScanProcess.Output.NumBytesAvailable>0 then
+  begin
+    sl:=TStringList.Create;
+    try
+      sl.LoadFromStream(FScanProcess.Output);
+      for line in sl do
+        if line.StartsWith('Scanning at ') then
+        begin
+          deg:=0;
+          for i:=13 to line.Length do
+            case line[i] of
+            '0'..'9': deg := deg * 10 + ord(line[i])-ord('0');
+            otherwise break;
+            end;
+          ProgressBar1.Position:=deg;
+        end;
+    finally
+      sl.Free;
+    end;
+  end;
+  if FScanProcess.Running then
+    Exit;
+
+  if FScanProcess.ExitCode<>0 then
+  begin
+    sl:=TStringList.Create;
+    try
+      sl.LoadFromStream(FScanProcess.Stderr);
+      MessageDlg('Error while Scanning', sl.Text, mtError, [mbOK], 'Error');
+    finally
+      sl.Free;
+    end;
+  end;
+  FreeAndNil(FScanProcess);
+
+  ScanButton.Caption:='Scan';
+  ScanButton.Tag:=0;
+  ScanTimer.Enabled:=False;
+  if not ReadDatFile(OptionsDialog.ScanOptions.DatFile, ScanData, OptionsDialog.RenderingOptions.FilterRanges) then
     Exit;
   FPoints:=ScanData.Points;
   RangeStartEdit.Text:=ScanData.Start.ToString;
@@ -209,6 +324,32 @@ begin
   FScale:=1;
   FRotX:=0;
   FRotY:=0;
+  Renderer.Invalidate;
+end;
+
+procedure TForm1.LoadButtonClick(Sender: TObject);
+var
+  ScanData: TScanData;
+begin
+  if not OpenDatFileDialog.Execute then
+    Exit;
+  if not ReadDatFile(OpenDatFileDialog.FileName, ScanData, OptionsDialog.RenderingOptions.FilterRanges) then
+    Exit;
+  FPoints:=ScanData.Points;
+  RangeStartEdit.Text:=ScanData.Start.ToString;
+  RangeEndEdit.Text:=ScanData.Stop.ToString;
+  RangeStepEdit.Text:=ScanData.Step.ToString;
+  RotationsEdit.Text:=ScanData.Rotations.ToString;
+  PPSEdit.Text:=ScanData.PointsPerScan.ToString;
+  FScale:=1;
+  FRotX:=0;
+  FRotY:=0;
+  Renderer.Invalidate;
+end;
+
+procedure TForm1.OptionsButtonClick(Sender: TObject);
+begin
+  OptionsDialog.ShowModal;
   Renderer.Invalidate;
 end;
 
