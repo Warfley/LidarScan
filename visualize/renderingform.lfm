@@ -1,12 +1,13 @@
-object Form1: TForm1
+object RendererForm: TRendererForm
   Left = 200
   Height = 667
   Top = 0
   Width = 1009
-  Caption = 'Form1'
+  Caption = 'Lidar Scan Renderer'
   ClientHeight = 667
   ClientWidth = 1009
   DesignTimePPI = 110
+  OnCreate = FormCreate
   object Renderer: TOpenGLControl
     Left = 0
     Height = 628

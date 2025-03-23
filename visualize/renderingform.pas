@@ -23,9 +23,9 @@ type
     Points: Array of TPointData;
   end;
 
-  { TForm1 }
+  { TRendererForm }
 
-  TForm1 = class(TForm)
+  TRendererForm = class(TForm)
     LoadButton: TButton;
     ProgressBar1: TProgressBar;
     ScanButton: TButton;
@@ -44,6 +44,7 @@ type
     Renderer: TOpenGLControl;
     Panel1: TPanel;
     ScanTimer: TTimer;
+    procedure FormCreate(Sender: TObject);
     procedure LoadButtonClick(Sender: TObject);
     procedure OptionsButtonClick(Sender: TObject);
     procedure RendererMouseDown(Sender: TObject; Button: TMouseButton;
@@ -68,35 +69,37 @@ type
   end;
 
 var
-  Form1: TForm1;
+  RendererForm: TRendererForm;
 
 implementation
 
 {$R *.lfm}
 
 
-function ReadDatFile(const FileName: String; out ScanData: TScanData; const Filters: TFilterRanges): Boolean;
+function ReadDatFile(const FileName: String; out ScanData: TScanData;
+                     const Filters: TFilterRanges; const MaxRadius: Double;
+                     const NormalizationRadius: Double): Boolean;
 
-function CheckHeader(fs: TFileStream): Boolean; inline;
-var
-  s: String[10];
-  v: LongWord;
-begin
-  Result := False;
-  SetLength(s,10);
-  if (fs.Read(s[1], 10) <> 10) or (s <> 'LIDARSCAN'#0) then
+  function CheckHeader(fs: TFileStream): Boolean; inline;
+  var
+    s: String[10];
+    v: LongWord;
   begin
-    MessageDlg('Error reading File', 'Invalid MAGIC number', mtError, [mbOK], 'Header Error');
-    Exit;
-  end;
-  if (fs.Read(v,SizeOf(v))<>SizeOf(v)) or (v<>1) then
-  begin
-    MessageDlg('Error reading File', 'Invalid File Version', mtError, [mbOK], 'Header Error');
-    Exit;
-  end;
+    Result := False;
+    SetLength(s,10);
+    if (fs.Read(s[1], 10) <> 10) or (s <> 'LIDARSCAN'#0) then
+    begin
+      MessageDlg('Error reading File', 'Invalid MAGIC number', mtError, [mbOK], 'Header Error');
+      Exit;
+    end;
+    if (fs.Read(v,SizeOf(v))<>SizeOf(v)) or (v<>1) then
+    begin
+      MessageDlg('Error reading File', 'Invalid File Version', mtError, [mbOK], 'Header Error');
+      Exit;
+    end;
 
-  Result := True;
-end;
+    Result := True;
+  end;
 
 type
   TPointRecord = packed record
@@ -104,39 +107,66 @@ type
     Quality: Byte;
   end;
 
-function ConvertPoint(const p: TPointRecord): TPointData; inline;
+  function ConvertPoint(const p: TPointRecord): TPointData; inline;
 
-function DegToRad(const d: Double): Double; inline;
-begin
-  Result:=d/180*pi;
-end;
-
-var
-  tmp: Double;
-begin
-  Result.Z:=Sin(DegToRad(p.Pitch))*p.Distance/32;
-  tmp:=Cos(DegToRad(p.Pitch))*p.Distance/32;
-  Result.Y:=Sin(DegToRad(p.Yaw))*tmp;
-  Result.X:=Cos(DegToRad(p.Yaw))*tmp;
-  Result.Quality:=p.Quality/255;
-end;
-
-function inFilter(pitch: Double): Boolean;
-var
-  range: Array[0..1] of Double;
-begin
-  if Length(Filters) = 0 then
-    Exit(True);
-  Result:=False;
-  for range in Filters do
-    if range[0]<=range[1] then
+    function DegToRad(const d: Double): Double; inline;
     begin
-      if (pitch>=range[0]) and (pitch<=range[1]) then
-        Exit(True);
-    end
-    else if (pitch>=range[0]) or (pitch<=range[1]) then
+      Result:=d/180*pi;
+    end;
+
+  var
+    tmp: Double;
+  begin
+    Result:=Default(TPointData);
+    Result.Z:=Sin(DegToRad(p.Pitch))*p.Distance/32;
+    tmp:=Cos(DegToRad(p.Pitch))*p.Distance/32;
+    Result.Y:=Sin(DegToRad(p.Yaw))*tmp;
+    Result.X:=Cos(DegToRad(p.Yaw))*tmp;
+    Result.Quality:=p.Quality/255;
+  end;
+
+  function inFilter(pitch: Double): Boolean;
+  var
+    range: Array[0..1] of Double;
+  begin
+    if Length(Filters) = 0 then
       Exit(True);
-end;
+    Result:=False;
+    for range in Filters do
+      if range[0]<=range[1] then
+      begin
+        if (pitch>=range[0]) and (pitch<=range[1]) then
+          Exit(True);
+      end
+      else if (pitch>=range[0]) or (pitch<=range[1]) then
+        Exit(True);
+  end;
+
+  function DropForNormalization(const P: TPointRecord): Boolean; inline;
+  var
+    PResolution, YResolution,
+    BaseProb, DistanceProb: Double;
+  begin
+    if NormalizationRadius<=0 then
+      Exit(False);
+    PResolution:=ScanData.PointsPerScan/360; // Pitch axis resolution
+    YResolution:=1/ScanData.Step; // Yaw axis resolution
+    // Basis probability to drop is to normalize the axial resolutions
+    if PResolution>YResolution then
+      BaseProb:=YResolution/PResolution
+    else
+      BaseProb:=PResolution/YResolution;
+    // Drop probability based on distance: If larger than normalization distance
+    // don't drop, otherwise drop such that the density on circle of that distance
+    // is the same as on the normalization distance
+    // TODO: Actually we're talking about the surface of a sphere?
+    if P.Distance > NormalizationRadius then
+      DistanceProb:=1
+    else
+      DistanceProb:=abs(Cos(DegToRad(p.Pitch))*p.Distance)/NormalizationRadius;
+    // Drop the point with probability 1-BaseProb*DistanceProb
+    Result := Random > BaseProb*DistanceProb;
+  end;
 
 var
   fs: TFileStream;
@@ -179,7 +209,10 @@ begin
           Exit;
         end;
       end;
-      if (buff[ReadHead].Quality>0) and (buff[ReadHead].Distance>0) and inFilter(buff[ReadHead].Pitch) then
+      if (buff[ReadHead].Quality>0) and (buff[ReadHead].Distance>0) and
+         inFilter(buff[ReadHead].Pitch) and
+         (buff[ReadHead].Distance<=MaxRadius) and
+         not DropForNormalization(buff[ReadHead]) then
       begin
         ScanData.Points[WriteHead]:=ConvertPoint(buff[ReadHead]);
         Inc(WriteHead);
@@ -192,9 +225,9 @@ begin
   Result := True;
 end;
 
-{ TForm1 }
+{ TRendererForm }
 
-procedure TForm1.RendererPaint(Sender: TObject);
+procedure TRendererForm.RendererPaint(Sender: TObject);
 var
   p: TPointData;
   bgRGB, ptRGB: LongInt;
@@ -225,7 +258,7 @@ begin
   Renderer.SwapBuffers;
 end;
 
-procedure TForm1.ScanButtonClick(Sender: TObject);
+procedure TRendererForm.ScanButtonClick(Sender: TObject);
 var
   formatOpts: TFormatSettings;
   i: Integer;
@@ -267,7 +300,7 @@ begin
   end;
 end;
 
-procedure TForm1.ScanTimerTimer(Sender: TObject);
+procedure TRendererForm.ScanTimerTimer(Sender: TObject);
 var
   sl: TStringList;
   line: String;
@@ -315,7 +348,11 @@ begin
   ScanButton.Caption:='Scan';
   ScanButton.Tag:=0;
   ScanTimer.Enabled:=False;
-  if not ReadDatFile(OptionsDialog.ScanOptions.DatFile, ScanData, OptionsDialog.RenderingOptions.FilterRanges) then
+  ScanData:=Default(TScanData);
+  if not ReadDatFile(OptionsDialog.ScanOptions.DatFile, ScanData,
+                     OptionsDialog.RenderingOptions.FilterRanges,
+                     OptionsDialog.RenderingOptions.MaximumRadius,
+                     OptionsDialog.RenderingOptions.NormalizationRadius) then
     Exit;
   FPoints:=ScanData.Points;
   RangeStartEdit.Text:=ScanData.Start.ToString;
@@ -329,13 +366,17 @@ begin
   Renderer.Invalidate;
 end;
 
-procedure TForm1.LoadButtonClick(Sender: TObject);
+procedure TRendererForm.LoadButtonClick(Sender: TObject);
 var
   ScanData: TScanData;
 begin
   if not OpenDatFileDialog.Execute then
     Exit;
-  if not ReadDatFile(OpenDatFileDialog.FileName, ScanData, OptionsDialog.RenderingOptions.FilterRanges) then
+  ScanData:=Default(TScanData);
+  if not ReadDatFile(OptionsDialog.ScanOptions.DatFile, ScanData,
+                     OptionsDialog.RenderingOptions.FilterRanges,
+                     OptionsDialog.RenderingOptions.MaximumRadius,
+                     OptionsDialog.RenderingOptions.NormalizationRadius) then
     Exit;
   FPoints:=ScanData.Points;
   RangeStartEdit.Text:=ScanData.Start.ToString;
@@ -349,19 +390,24 @@ begin
   Renderer.Invalidate;
 end;
 
-procedure TForm1.OptionsButtonClick(Sender: TObject);
+procedure TRendererForm.FormCreate(Sender: TObject);
+begin
+  Randomize;
+end;
+
+procedure TRendererForm.OptionsButtonClick(Sender: TObject);
 begin
   OptionsDialog.ShowModal;
   Renderer.Invalidate;
 end;
 
-procedure TForm1.RendererMouseDown(Sender: TObject; Button: TMouseButton;
+procedure TRendererForm.RendererMouseDown(Sender: TObject; Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer);
 begin
   FMousePoint:=Point(X,Y);
 end;
 
-procedure TForm1.RendererMouseMove(Sender: TObject; Shift: TShiftState; X,
+procedure TRendererForm.RendererMouseMove(Sender: TObject; Shift: TShiftState; X,
   Y: Integer);
 var
   dx, dy: Integer;
@@ -377,7 +423,7 @@ begin
   end;
 end;
 
-procedure TForm1.RendererMouseWheel(Sender: TObject; Shift: TShiftState;
+procedure TRendererForm.RendererMouseWheel(Sender: TObject; Shift: TShiftState;
   WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean);
 begin
   FScale *= 1+WheelDelta/512;

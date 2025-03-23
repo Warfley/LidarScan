@@ -23,8 +23,8 @@ type
 
   TRenderingOptions = record
     FilterRanges: TFilterRanges;
-    Normalize: Boolean;
     NormalizationRadius: Double;
+    MaximumRadius: Double;
     BackgroundColor: TColor;
     PointColor: TColor;
     AlphaQuality: Boolean;
@@ -35,6 +35,9 @@ type
   TOptionsDialog = class(TForm)
     BitBtn1: TBitBtn;
     BitBtn2: TBitBtn;
+    Label15: TLabel;
+    Label16: TLabel;
+    MaxRadiusEdit: TEdit;
     NormalizeCheckbox: TCheckBox;
     DeleteFilterButton: TButton;
     BottomPanel: TPanel;
@@ -145,7 +148,8 @@ begin
   Result.BackgroundColor:=$FFAAAA;
   Result.PointColor:=clWhite;
   Result.AlphaQuality:=True;
-  Result.NormalizationRadius:=16;
+  Result.NormalizationRadius:=-1;
+  Result.MaximumRadius:=32;
 end;
 
 procedure TOptionsDialog.UpdateSettings;
@@ -169,8 +173,8 @@ begin
   FilterListbox.Clear;
   for range in FRenderingOptions.FilterRanges do
     FilterListbox.Items.Add('%s..%s',[range[0].ToString,range[1].ToString]);
-  NormalizeCheckbox.Checked:=FRenderingOptions.Normalize;
-  if FRenderingOptions.Normalize then
+  NormalizeCheckbox.Checked:=FRenderingOptions.NormalizationRadius>=0;
+  if NormalizeCheckbox.Checked then
     NormalizationEdit.Text:=FRenderingOptions.NormalizationRadius.ToString
   else
     NormalizationEdit.Text:='16';
@@ -203,7 +207,10 @@ end;
 
 procedure TOptionsDialog.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 var
-  RStart, REnd, RStep, Rotations, NormalizationRadius: Double;
+  RStart, REnd, RStep,
+  Rotations,
+  NormalizationRadius,
+  MaxRadius: Double;
   ranges: TFilterRanges;
   parts: TStringArray;
   i: Integer;
@@ -235,7 +242,14 @@ begin
   begin
     MessageDlg('Invalid Normalization', 'The normalization radius must be a positive number', mtWarning, [mbOK], 'Normalizationserror');
     CanClose:=False;
-  end; 
+  end;
+
+  if not TryStrToFloat(MaxRadiusEdit.Text, MaxRadius) or
+     (NormalizationRadius <= 0) then
+  begin
+    MessageDlg('Invalid Radius', 'The maximal radius must be a positive number', mtWarning, [mbOK], 'Radiuserror');
+    CanClose:=False;
+  end;
 
   ranges:=[];
   SetLength(ranges, FilterListbox.Items.Count);
@@ -270,9 +284,11 @@ begin
 
   FRenderingOptions:=DefaultRenderingOptions;
   FRenderingOptions.FilterRanges:=ranges;
-  FRenderingOptions.Normalize:=NormalizeCheckbox.Checked;
-  if FRenderingOptions.Normalize then
-    FRenderingOptions.NormalizationRadius:=NormalizationRadius;
+  if NormalizeCheckbox.Checked then
+    FRenderingOptions.NormalizationRadius:=NormalizationRadius
+  else
+    FRenderingOptions.NormalizationRadius:=-1;
+  FRenderingOptions.MaximumRadius:=MaxRadius;
   FRenderingOptions.AlphaQuality:=AlphaCheckbox.Checked;
   FRenderingOptions.PointColor:=PointColorButton.ButtonColor;
   FRenderingOptions.BackgroundColor:=BackgroundColorButton.ButtonColor;

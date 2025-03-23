@@ -232,18 +232,18 @@ object OptionsDialog: TOptionsDialog
     OnResize = LoadOptionsBoxResize
     object GroupBox1: TGroupBox
       Left = 8
-      Height = 144
-      Top = 288
+      Height = 128
+      Top = 304
       Width = 260
       Anchors = [akLeft, akRight, akBottom]
       Caption = 'Colors'
-      ClientHeight = 115
+      ClientHeight = 99
       ClientWidth = 254
       TabOrder = 0
       object BackgroundColorButton: TColorButton
         Left = 160
         Height = 29
-        Top = 16
+        Top = 8
         Width = 86
         Anchors = [akTop, akRight]
         BorderWidth = 2
@@ -253,21 +253,21 @@ object OptionsDialog: TOptionsDialog
       object Label9: TLabel
         Left = 8
         Height = 20
-        Top = 17
+        Top = 9
         Width = 80
         Caption = 'Background'
       end
       object Label10: TLabel
         Left = 8
         Height = 20
-        Top = 49
+        Top = 41
         Width = 41
         Caption = 'Points'
       end
       object PointColorButton: TColorButton
         Left = 160
         Height = 29
-        Top = 48
+        Top = 40
         Width = 86
         Anchors = [akTop, akRight]
         BorderWidth = 2
@@ -277,7 +277,7 @@ object OptionsDialog: TOptionsDialog
       object AlphaCheckbox: TCheckBox
         Left = 120
         Height = 26
-        Top = 80
+        Top = 72
         Width = 136
         Anchors = [akTop, akRight]
         Caption = 'Alpha by Quality'
@@ -350,7 +350,7 @@ object OptionsDialog: TOptionsDialog
     object NormalizeCheckbox: TCheckBox
       Left = 8
       Height = 26
-      Top = 176
+      Top = 160
       Width = 187
       Caption = 'Normalize Point Density'
       TabOrder = 6
@@ -359,7 +359,7 @@ object OptionsDialog: TOptionsDialog
     object NormalizationEdit: TEdit
       Left = 8
       Height = 28
-      Top = 232
+      Top = 216
       Width = 148
       Alignment = taRightJustify
       Enabled = False
@@ -370,14 +370,38 @@ object OptionsDialog: TOptionsDialog
     object Label13: TLabel
       Left = 8
       Height = 20
-      Top = 208
+      Top = 192
       Width = 141
       Caption = 'Normalization Radius'
     end
     object Label14: TLabel
       Left = 160
       Height = 20
-      Top = 238
+      Top = 222
+      Width = 14
+      Caption = 'm'
+    end
+    object Label15: TLabel
+      Left = 8
+      Height = 20
+      Top = 248
+      Width = 115
+      Caption = 'Maximum Radius'
+    end
+    object MaxRadiusEdit: TEdit
+      Left = 8
+      Height = 28
+      Top = 272
+      Width = 148
+      Alignment = taRightJustify
+      TabOrder = 8
+      Text = '32'
+      OnChange = RangeStartEditChange
+    end
+    object Label16: TLabel
+      Left = 160
+      Height = 20
+      Top = 278
       Width = 14
       Caption = 'm'
     end
