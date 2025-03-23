@@ -63,6 +63,7 @@ type
     FScale: Double;
     FRotX: Double;
     FRotY: Double;
+    FMoveX, FMoveY: Double;
     FMousePoint: TPoint;
   public
 
@@ -118,9 +119,9 @@ type
     tmp: Double;
   begin
     Result:=Default(TPointData);
-    Result.Z:=Sin(DegToRad(p.Pitch))*p.Distance/32;
-    tmp:=Cos(DegToRad(p.Pitch))*p.Distance/32;
-    Result.Y:=Sin(DegToRad(p.Yaw))*tmp;
+    Result.Y:=Sin(DegToRad(p.Pitch))*p.Distance;
+    tmp:=Cos(DegToRad(p.Pitch))*p.Distance;
+    Result.Z:=-Sin(DegToRad(p.Yaw))*tmp;
     Result.X:=Cos(DegToRad(p.Yaw))*tmp;
     Result.Quality:=p.Quality/255;
   end;
@@ -231,20 +232,28 @@ procedure TRendererForm.RendererPaint(Sender: TObject);
 var
   p: TPointData;
   bgRGB, ptRGB: LongInt;
-  ptAlpha: Double;
+  ptAlpha, aspectRatio: Double;
 begin
   bgRGB:=ColorToRGB(OptionsDialog.RenderingOptions.BackgroundColor);
   ptRGB:=ColorToRGB(OptionsDialog.RenderingOptions.PointColor);
   ptAlpha:=1.0;
+  aspectRatio:=Renderer.ClientWidth/Renderer.ClientHeight;
+
   glClearColor((bgRGB mod 256)/$FF, ((bgRGB shr 8) mod 256)/$FF, ((bgRGB shr 16) mod 256)/$FF, 1.0);
   glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
+
   glMatrixMode(GL_PROJECTION);
+  glLoadIdentity;
   glViewport(0,0,Renderer.ClientWidth,renderer.ClientHeight);
+  glFrustum(0,0,Renderer.ClientWidth,Renderer.ClientHeight, 0.01, 1000);
+
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity;
-  glScaled(FScale,FScale,FScale);
+  glTranslated(FMoveX,FMoveY,0);
+  glScaled(FScale/aspectRatio,FScale,FScale);
   glRotatef(FRotX,0,1,0);
   glRotatef(FRotY,1,0,0);
+
   glBegin(GL_POINTS);
   for p in FPoints do
   begin
@@ -255,13 +264,13 @@ begin
     glVertex3d(p.X,p.Y,p.Z);
   end;
   glEnd;
+
   Renderer.SwapBuffers;
 end;
 
 procedure TRendererForm.ScanButtonClick(Sender: TObject);
 var
   formatOpts: TFormatSettings;
-  i: Integer;
 begin
   if ScanButton.Tag=0 then
   begin
@@ -333,21 +342,25 @@ begin
   if FScanProcess.Running then
     Exit;
 
-  if FScanProcess.ExitCode<>0 then
-  begin
-    sl:=TStringList.Create;
-    try
-      sl.LoadFromStream(FScanProcess.Stderr);
-      MessageDlg('Error while Scanning', sl.Text, mtError, [mbOK], 'Error');
-    finally
-      sl.Free;
+  try
+    if FScanProcess.ExitCode<>0 then
+    begin
+      sl:=TStringList.Create;
+      try
+        sl.LoadFromStream(FScanProcess.Stderr);
+        MessageDlg('Error while Scanning', sl.Text, mtError, [mbOK], 'Error');
+      finally
+        sl.Free;
+      end;
+      Exit;
     end;
+  finally
+    ScanButton.Caption:='Scan';
+    ScanButton.Tag:=0;
+    ScanTimer.Enabled:=False;
+    FreeAndNil(FScanProcess);
   end;
-  FreeAndNil(FScanProcess);
 
-  ScanButton.Caption:='Scan';
-  ScanButton.Tag:=0;
-  ScanTimer.Enabled:=False;
   ScanData:=Default(TScanData);
   if not ReadDatFile(OptionsDialog.ScanOptions.DatFile, ScanData,
                      OptionsDialog.RenderingOptions.FilterRanges,
@@ -360,9 +373,11 @@ begin
   RangeStepEdit.Text:=ScanData.Step.ToString;
   RotationsEdit.Text:=ScanData.Rotations.ToString;
   PPSEdit.Text:=ScanData.PointsPerScan.ToString;
-  FScale:=1;
+  FScale:=0.1;
   FRotX:=0;
   FRotY:=0;
+  FMoveX:=0;
+  FMoveY:=0;
   Renderer.Invalidate;
 end;
 
@@ -384,9 +399,11 @@ begin
   RangeStepEdit.Text:=ScanData.Step.ToString;
   RotationsEdit.Text:=ScanData.Rotations.ToString;
   PPSEdit.Text:=ScanData.PointsPerScan.ToString;
-  FScale:=1;
+  FScale:=0.1;
   FRotX:=0;
   FRotY:=0;
+  FMoveX:=0;
+  FMoveY:=0;
   Renderer.Invalidate;
 end;
 
@@ -410,15 +427,21 @@ end;
 procedure TRendererForm.RendererMouseMove(Sender: TObject; Shift: TShiftState; X,
   Y: Integer);
 var
-  dx, dy: Integer;
+  dx, dy: Double;
 begin
+  dx:=(X-FMousePoint.X)/Renderer.ClientWidth;
+  dy:=(Y-FMousePoint.Y)/Renderer.ClientHeight;
+  FMousePoint:=Point(X,Y);
   if ssLeft in Shift then
   begin
-    dx:=X-FMousePoint.X;
-    dy:=Y-FMousePoint.Y;
-    FMousePoint:=Point(X,Y);
-    FRotX+=dx/Renderer.ClientWidth*180;
-    FRotY+=dy/Renderer.ClientHeight*180;
+    FRotX+=dx*180;
+    FRotY+=dy*180;
+    Renderer.Invalidate;
+  end;
+  if ssRight in Shift then
+  begin
+    FMoveX+=dx*2;
+    FMoveY-=dy*2;
     Renderer.Invalidate;
   end;
 end;
