@@ -1,18 +1,19 @@
 object RendererForm: TRendererForm
   Left = 200
-  Height = 667
+  Height = 582
   Top = 0
-  Width = 1009
+  Width = 935
   Caption = 'Lidar Scan Renderer'
-  ClientHeight = 667
-  ClientWidth = 1009
-  DesignTimePPI = 110
+  ClientHeight = 582
+  ClientWidth = 935
+  LCLVersion = '4.2.0.0'
   OnCreate = FormCreate
+  OnResize = FormResize
   object Renderer: TOpenGLControl
-    Left = 0
-    Height = 628
-    Top = 39
-    Width = 1009
+    Left = 56
+    Height = 502
+    Top = 34
+    Width = 823
     Align = alClient
     OnMouseDown = RendererMouseDown
     OnMouseMove = RendererMouseMove
@@ -21,59 +22,59 @@ object RendererForm: TRendererForm
   end
   object Panel1: TPanel
     Left = 0
-    Height = 39
+    Height = 34
     Top = 0
-    Width = 1009
+    Width = 935
     Align = alTop
     BevelOuter = bvNone
-    ClientHeight = 39
-    ClientWidth = 1009
+    ClientHeight = 34
+    ClientWidth = 935
     TabOrder = 1
     object LoadButton: TButton
-      Left = 923
-      Height = 39
+      Left = 860
+      Height = 34
       Top = 0
-      Width = 86
+      Width = 75
       Align = alRight
       Caption = 'Load'
       TabOrder = 0
       OnClick = LoadButtonClick
     end
     object RotationsEdit: TEdit
-      Left = 334
-      Height = 39
+      Left = 290
+      Height = 34
       Top = 0
-      Width = 50
+      Width = 44
       Align = alLeft
       ReadOnly = True
       TabOrder = 1
       Text = '1'
     end
     object RangeStepEdit: TEdit
-      Left = 206
-      Height = 39
+      Left = 179
+      Height = 34
       Top = 0
-      Width = 50
+      Width = 44
       Align = alLeft
       ReadOnly = True
       TabOrder = 2
       Text = '1'
     end
     object RangeEndEdit: TEdit
-      Left = 105
-      Height = 39
+      Left = 91
+      Height = 34
       Top = 0
-      Width = 50
+      Width = 44
       Align = alLeft
       ReadOnly = True
       TabOrder = 3
       Text = '180'
     end
     object RangeStartEdit: TEdit
-      Left = 50
-      Height = 39
+      Left = 43
+      Height = 34
       Top = 0
-      Width = 50
+      Width = 44
       Align = alLeft
       ReadOnly = True
       TabOrder = 4
@@ -81,97 +82,388 @@ object RendererForm: TRendererForm
     end
     object Label1: TLabel
       Left = 0
-      Height = 39
+      Height = 34
       Top = 0
-      Width = 50
+      Width = 43
       Align = alLeft
       Caption = 'Range: '
       Layout = tlCenter
     end
     object Label2: TLabel
-      Left = 256
-      Height = 39
+      Left = 223
+      Height = 34
       Top = 0
-      Width = 78
+      Width = 67
       Align = alLeft
       Caption = '  Rotations: '
       Layout = tlCenter
     end
     object Label3: TLabel
-      Left = 155
-      Height = 39
+      Left = 135
+      Height = 34
       Top = 0
-      Width = 51
+      Width = 44
       Align = alLeft
       Caption = '  Steps: '
       Layout = tlCenter
     end
     object Label4: TLabel
-      Left = 100
-      Height = 39
+      Left = 87
+      Height = 34
       Top = 0
-      Width = 5
+      Width = 4
       Align = alLeft
       Caption = '-'
       Layout = tlCenter
     end
     object PPSEdit: TEdit
-      Left = 500
-      Height = 39
+      Left = 434
+      Height = 34
       Top = 0
-      Width = 50
+      Width = 44
       Align = alLeft
       ReadOnly = True
       TabOrder = 5
     end
     object Label5: TLabel
-      Left = 384
-      Height = 39
+      Left = 334
+      Height = 34
       Top = 0
-      Width = 116
+      Width = 100
       Align = alLeft
       Caption = '  Points Per Scan: '
       Layout = tlCenter
     end
     object OptionsButton: TButton
-      Left = 550
-      Height = 39
+      Left = 478
+      Height = 34
       Top = 0
-      Width = 86
+      Width = 75
       Align = alLeft
       Caption = 'Options'
       TabOrder = 6
       OnClick = OptionsButtonClick
     end
     object ScanButton: TButton
-      Left = 837
-      Height = 39
+      Left = 785
+      Height = 34
       Top = 0
-      Width = 86
+      Width = 75
       Align = alRight
       Caption = 'Scan'
       TabOrder = 7
       OnClick = ScanButtonClick
     end
     object ProgressBar1: TProgressBar
-      Left = 636
-      Height = 39
+      Left = 553
+      Height = 34
       Top = 0
-      Width = 201
+      Width = 232
       Align = alClient
       TabOrder = 8
     end
   end
+  object Panel2: TPanel
+    Left = 0
+    Height = 46
+    Top = 536
+    Width = 935
+    Align = alBottom
+    BevelOuter = bvSpace
+    ClientHeight = 46
+    ClientWidth = 935
+    TabOrder = 2
+    object MinAngelLabel: TLabel
+      Left = 1
+      Height = 44
+      Top = 1
+      Width = 48
+      Align = alLeft
+      Alignment = taRightJustify
+      AutoSize = False
+      Caption = '0'
+      Layout = tlCenter
+    end
+    object MinAngelTrackbar: TTrackBar
+      Left = 49
+      Height = 44
+      Top = 1
+      Width = 100
+      Max = 3600
+      Position = 3600
+      Reversed = True
+      ShowSelRange = False
+      TickStyle = tsNone
+      OnChange = TrackbarChange
+      Align = alLeft
+      TabOrder = 0
+    end
+    object MaxAngelTrackbar: TTrackBar
+      Left = 149
+      Height = 44
+      Top = 1
+      Width = 100
+      Max = 3600
+      Position = 3600
+      TickStyle = tsNone
+      OnChange = TrackbarChange
+      Align = alLeft
+      TabOrder = 1
+    end
+    object MaxAngelLabel: TLabel
+      Left = 249
+      Height = 44
+      Top = 1
+      Width = 48
+      Align = alLeft
+      AutoSize = False
+      Caption = '360'
+      Layout = tlCenter
+    end
+    object Label8: TLabel
+      Left = 297
+      Height = 44
+      Top = 1
+      Width = 72
+      Align = alLeft
+      Caption = 'Background:'
+      Layout = tlCenter
+    end
+    object BackgroundColorButton: TColorButton
+      Left = 369
+      Height = 44
+      Top = 1
+      Width = 75
+      Align = alLeft
+      BorderWidth = 2
+      ButtonColorSize = 16
+      ButtonColor = 16755370
+      OnClick = BackgroundColorButtonClick
+    end
+    object PointColorButton: TColorButton
+      Left = 480
+      Height = 44
+      Top = 1
+      Width = 75
+      Align = alLeft
+      BorderWidth = 2
+      ButtonColorSize = 16
+      ButtonColor = clWhite
+      OnClick = PointColorButtonClick
+    end
+    object Label9: TLabel
+      Left = 444
+      Height = 44
+      Top = 1
+      Width = 36
+      Align = alLeft
+      Caption = 'Points'
+      Layout = tlCenter
+    end
+    object NormalizeCheckbox: TCheckBox
+      Left = 555
+      Height = 44
+      Top = 1
+      Width = 82
+      Align = alLeft
+      Caption = 'Normalize'
+      TabOrder = 2
+      OnChange = NormalizeCheckboxChange
+    end
+    object NormalizeTrackbar: TTrackBar
+      Left = 637
+      Height = 44
+      Top = 1
+      Width = 100
+      Max = 320
+      Position = 60
+      OnChange = NormalizeTrackbarChange
+      Align = alLeft
+      Enabled = False
+      TabOrder = 3
+    end
+    object BitBtn1: TBitBtn
+      Left = 847
+      Height = 44
+      Top = 1
+      Width = 87
+      Align = alRight
+      Caption = 'Export'
+      Glyph.Data = {
+        36040000424D3604000000000000360000002800000010000000100000000100
+        2000000000000004000064000000640000000000000000000000FF9046FFFF8F
+        44FFFF8E42FFFF8D40FFFF8B3EFFFF8A3CFFFF893AFFFF8838FFFF8636FFFF85
+        34FFFF8432FFFF8330FFFF812EFFFF802CFFFF7F2AFFFFFFFF00FF9248FFFF90
+        46FF0066FFFF0066FFFF0066FFFF0066FFFF0066FFFF0066FFFF0066FFFF0066
+        FFFF0066FFFF0066FFFF0066FFFFFF822EFFFF802CFFFFFFFF00FF934AFFFF92
+        48FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+        FFFFFFFFFFFFFFFFFFFFFFFFFFFFFF8330FFFF822EFFFFFFFF00FF944CFFFF93
+        4AFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+        FFFFFFFFFFFFFFFFFFFFFFFFFFFFFF8432FFFF8330FFFFFFFF00FF954EFFFF94
+        4CFFFFFFFFFFE6E6E6FFE6E6E6FFE6E6E6FFE6E6E6FFE6E6E6FFE6E6E6FFE6E6
+        E6FFE6E6E6FFE6E6E6FFFFFFFFFFFF8635FFFF8433FFFFFFFF00FF9751FFFF96
+        4FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+        FFFFFFFFFFFFFFFFFFFFFFFFFFFFFF8737FFFF8635FFFFFFFF00FF9853FFFF97
+        51FFFFFFFFFFE6E6E6FFE6E6E6FFE6E6E6FFE6E6E6FFE6E6E6FFE6E6E6FFE6E6
+        E6FFE6E6E6FFE6E6E6FFFFFFFFFFFF8839FFFF8737FFFFFFFF00FF9955FFFF98
+        53FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+        FFFFFFFFFFFFFFFFFFFFFFFFFFFFFF893BFFFF8839FFFFFFFF00FF9B57FFFF9A
+        55FFFFF8F3FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+        FFFFFFFFFFFFFFFFFFFFFFF6F1FFFF8B3DFFFF8A3BFFFFFFFF00FF9C59FFFF9B
+        57FFFF9A55FFFF9853FFFF9751FFFF964FFFFF954DFFFF934BFFFF9249FFFF91
+        47FFFF9045FFFF8F43FFFF8D41FFFF8C3FFFFF8B3DFFFFFFFF00FF9D5BFFFF9C
+        59FFFF9B57FFFF9A55FFFF9853FFFF9751FFFF964FFFFF954DFFFF944BFFFF92
+        49FFFF9147FFFF9045FFFF8F43FFFF8D41FFFF8C3FFFFFFFFF00FF9F5DFFFF9D
+        5BFFFF9C59FFFF9B57FFCCC3BCFFCCC3BCFFCCC3BCFFCCC3BCFFCCC3BCFFCCC3
+        BCFFCCC3BCFFCCC3BCFFFF9046FFFF8F44FFFF8E42FFFFFFFF00FFA060FFFF9F
+        5EFFFF9E5CFFFF9C5AFFD3CCC7FFD3CCC7FFD3CCC7FFD3CCC7FFD3CCC7FFFF95
+        4EFFFF944CFFD3CCC7FFFF9148FFFF9046FFFF8F44FFFFFFFF00FFA162FFFFA0
+        60FFFF9F5EFFFF9E5CFFDAD5D2FFDAD5D2FFDAD5D2FFDAD5D2FFDAD5D2FFFF96
+        50FFFF954EFFDAD5D2FFFF934AFFFF9148FFFF9046FFFFFFFF00FFA364FFFFA1
+        62FFFFA060FFFF9F5EFFE1DEDCFFE1DEDCFFE1DEDCFFE1DEDCFFE1DEDCFFFF98
+        52FFFF9650FFE1DEDCFFFF944CFFFF934AFFFF9148DFFFFFFF00FFA466FFFFA3
+        64FFFFA262FFFFA060FFE8E7E7FFE8E7E7FFE8E7E7FFE8E7E7FFE8E7E7FFE8E7
+        E7FFE8E7E7FFE8E7E7FFFF954EFFFF944CE1FF964B22FFFFFF00
+      }
+      TabOrder = 4
+      OnClick = BitBtn1Click
+    end
+  end
+  object Panel3: TPanel
+    Left = 0
+    Height = 502
+    Top = 34
+    Width = 56
+    Align = alLeft
+    BevelOuter = bvSpace
+    ClientHeight = 502
+    ClientWidth = 56
+    TabOrder = 3
+    object MinDistanceLabel: TLabel
+      Left = 1
+      Height = 17
+      Top = 484
+      Width = 54
+      Align = alBottom
+      Alignment = taCenter
+      Caption = '0'
+      Layout = tlCenter
+    end
+    object MaxDistanceTrackbar: TTrackBar
+      Left = 1
+      Height = 100
+      Top = 18
+      Width = 54
+      Max = 320
+      Orientation = trVertical
+      Position = 40
+      Reversed = True
+      TickStyle = tsNone
+      OnChange = TrackbarChange
+      Align = alTop
+      TabOrder = 0
+    end
+    object MinDistanceTrackbar: TTrackBar
+      Left = 1
+      Height = 366
+      Top = 118
+      Width = 54
+      Max = 320
+      Orientation = trVertical
+      Position = 320
+      TickStyle = tsNone
+      OnChange = TrackbarChange
+      Align = alClient
+      TabOrder = 1
+    end
+    object MaxDistanceLabel: TLabel
+      Left = 1
+      Height = 17
+      Top = 1
+      Width = 54
+      Align = alTop
+      Alignment = taCenter
+      Caption = '0'
+      Layout = tlCenter
+    end
+  end
+  object Panel4: TPanel
+    Left = 879
+    Height = 502
+    Top = 34
+    Width = 56
+    Align = alRight
+    BevelOuter = bvSpace
+    ClientHeight = 502
+    ClientWidth = 56
+    TabOrder = 4
+    object MinPitchLabel: TLabel
+      Left = 1
+      Height = 17
+      Top = 484
+      Width = 54
+      Align = alBottom
+      Alignment = taCenter
+      Caption = '0'
+      Layout = tlCenter
+    end
+    object MaxPitchTrackbar: TTrackBar
+      Left = 1
+      Height = 100
+      Top = 18
+      Width = 54
+      Max = 3600
+      Orientation = trVertical
+      Position = 450
+      Reversed = True
+      TickStyle = tsNone
+      OnChange = TrackbarChange
+      Align = alTop
+      TabOrder = 0
+    end
+    object MinPitchTrackbar: TTrackBar
+      Left = 1
+      Height = 366
+      Top = 118
+      Width = 54
+      Max = 3600
+      Orientation = trVertical
+      Position = 450
+      TickStyle = tsNone
+      OnChange = TrackbarChange
+      Align = alClient
+      TabOrder = 1
+    end
+    object MaxPitchLabel: TLabel
+      Left = 1
+      Height = 17
+      Top = 1
+      Width = 54
+      Align = alTop
+      Alignment = taCenter
+      Caption = '0'
+      Layout = tlCenter
+    end
+  end
   object OpenDatFileDialog: TOpenDialog
     Filter = 'Binary Scan Data|*.dat'
-    Left = 92
-    Top = 92
+    Left = 80
+    Top = 80
   end
   object ScanTimer: TTimer
     Enabled = False
     Interval = 50
     OnTimer = ScanTimerTimer
-    Left = 16
-    Top = 16
+    Left = 688
+    Top = 24
+  end
+  object SaveDialog1: TSaveDialog
+    DefaultExt = '.*.acs'
+    FileName = '/home/frederic'
+    Filter = 'PTS File | *.pts'
+    InitialDir = '/home/'
+    OptionsEx = [ofStrictFileTypes]
+    Left = 624
+    Top = 208
   end
 end

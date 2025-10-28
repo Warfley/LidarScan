@@ -19,47 +19,16 @@ type
     JSONFile: String;
   end;
 
-  TFilterRanges = Array of Array[0..1] of Double;
-
-  TRenderingOptions = record
-    FilterRanges: TFilterRanges;
-    NormalizationRadius: Double;
-    MaximumRadius: Double;
-    BackgroundColor: TColor;
-    PointColor: TColor;
-    AlphaQuality: Boolean;
-  end;
-
   { TOptionsDialog }
 
   TOptionsDialog = class(TForm)
     BitBtn1: TBitBtn;
     BitBtn2: TBitBtn;
-    Label15: TLabel;
-    Label16: TLabel;
-    MaxRadiusEdit: TEdit;
-    NormalizeCheckbox: TCheckBox;
-    DeleteFilterButton: TButton;
     BottomPanel: TPanel;
-    AlphaCheckbox: TCheckBox;
-    BackgroundColorButton: TColorButton;
-    PointColorButton: TColorButton;
-    AddFilterButton: TButton;
-    GroupBox1: TGroupBox;
-    Label10: TLabel;
-    Label11: TLabel;
-    Label12: TLabel;
-    Label13: TLabel;
-    Label14: TLabel;
     Label5: TLabel;
     Label6: TLabel;
     Label7: TLabel;
     Label8: TLabel;
-    Label9: TLabel;
-    FilterListbox: TListBox;
-    FilterRangeEndEdit: TEdit;
-    FilterRangeStartEdit: TEdit;
-    NormalizationEdit: TEdit;
     ServoCOMFileEdit: TFileNameEdit;
     RangeStartEdit: TEdit;
     EnableJSONCheckbox: TCheckBox;
@@ -75,28 +44,21 @@ type
     Label2: TLabel;
     LidarCOMFileEdit: TFileNameEdit;
     ScanOptionsBox: TGroupBox;
-    LoadOptionsBox: TGroupBox;
-    procedure AddFilterButtonClick(Sender: TObject);
-    procedure DeleteFilterButtonClick(Sender: TObject);
     procedure EnableJSONCheckboxChange(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure FormCreate(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure LoadOptionsBoxResize(Sender: TObject);
-    procedure NormalizeCheckboxChange(Sender: TObject);
     procedure RangeStartEditChange(Sender: TObject);
   private
     FScanOptions: TScanOptions;
-    FRenderingOptions: TRenderingOptions;
 
   public
     function DefaultScanOptions: TScanOptions;
-    function DefaultRenderingOptions: TRenderingOptions;
 
     procedure UpdateSettings;
 
     property ScanOptions: TScanOptions read FScanOptions;
-    property RenderingOptions: TRenderingOptions read FRenderingOptions;
   end;
 
 var
@@ -111,11 +73,6 @@ implementation
 procedure TOptionsDialog.LoadOptionsBoxResize(Sender: TObject);
 begin
   ScanOptionsBox.Width:=ClientWidth div 2;
-end;
-
-procedure TOptionsDialog.NormalizeCheckboxChange(Sender: TObject);
-begin
-  NormalizationEdit.Enabled:=NormalizeCheckbox.Checked;
 end;
 
 procedure TOptionsDialog.RangeStartEditChange(Sender: TObject);
@@ -142,16 +99,6 @@ begin
   Result.JSONFile:='';
 end;
 
-function TOptionsDialog.DefaultRenderingOptions: TRenderingOptions;
-begin
-  Result:=Default(TRenderingOptions);
-  Result.BackgroundColor:=$FFAAAA;
-  Result.PointColor:=clWhite;
-  Result.AlphaQuality:=True;
-  Result.NormalizationRadius:=-1;
-  Result.MaximumRadius:=32;
-end;
-
 procedure TOptionsDialog.UpdateSettings;
 var
   range: Array[0..1] of Double;
@@ -169,18 +116,6 @@ begin
     JSONFilenameEdit.FileName:=FScanOptions.JSONFile
   else
     JSONFilenameEdit.FileName:='LidarScan.json';
-
-  FilterListbox.Clear;
-  for range in FRenderingOptions.FilterRanges do
-    FilterListbox.Items.Add('%s..%s',[range[0].ToString,range[1].ToString]);
-  NormalizeCheckbox.Checked:=FRenderingOptions.NormalizationRadius>=0;
-  if NormalizeCheckbox.Checked then
-    NormalizationEdit.Text:=FRenderingOptions.NormalizationRadius.ToString
-  else
-    NormalizationEdit.Text:='16';
-  AlphaCheckbox.Checked:=FRenderingOptions.AlphaQuality;
-  PointColorButton.ButtonColor:=FRenderingOptions.PointColor;
-  BackgroundColorButton.ButtonColor:=FRenderingOptions.BackgroundColor;
 end;
 
 procedure TOptionsDialog.EnableJSONCheckboxChange(Sender: TObject);
@@ -188,30 +123,10 @@ begin
   JSONFilenameEdit.Enabled:=EnableJSONCheckbox.Checked;
 end;
 
-procedure TOptionsDialog.AddFilterButtonClick(Sender: TObject);
-var
-  Start, Stop: Double;
-begin
-  if not TryStrToFloat(FilterRangeStartEdit.Text, Start) or
-     not TryStrToFloat(FilterRangeEndEdit.Text, Stop) or
-     (Start<0) or (Start>360) or (Stop<0) or (Stop>360) then
-    MessageDlg('Invalid angle Ranges', 'The ranges entered must be floating point numbers in the range of 0..360',mtWarning,[mbOK],'RangeError')
-  else
-    FilterListbox.Items.Add('%s..%s', [FilterRangeStartEdit.Text,FilterRangeEndEdit.Text]);
-end;
-
-procedure TOptionsDialog.DeleteFilterButtonClick(Sender: TObject);
-begin
-  FilterListbox.DeleteSelected;
-end;
-
 procedure TOptionsDialog.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 var
   RStart, REnd, RStep,
-  Rotations,
-  NormalizationRadius,
-  MaxRadius: Double;
-  ranges: TFilterRanges;
+  Rotations: Double;
   parts: TStringArray;
   i: Integer;
 begin
@@ -235,38 +150,6 @@ begin
     CanClose:=False;
   end;
 
-  if NormalizeCheckbox.Checked and (
-       not TryStrToFloat(NormalizationEdit.Text, NormalizationRadius) or
-       (NormalizationRadius < 0)
-     ) then
-  begin
-    MessageDlg('Invalid Normalization', 'The normalization radius must be a positive number', mtWarning, [mbOK], 'Normalizationserror');
-    CanClose:=False;
-  end;
-
-  if not TryStrToFloat(MaxRadiusEdit.Text, MaxRadius) or
-     (NormalizationRadius <= 0) then
-  begin
-    MessageDlg('Invalid Radius', 'The maximal radius must be a positive number', mtWarning, [mbOK], 'Radiuserror');
-    CanClose:=False;
-  end;
-
-  ranges:=[];
-  SetLength(ranges, FilterListbox.Items.Count);
-  for i:=0 to FilterListbox.Items.Count-1 do
-  begin
-    parts := FilterListbox.Items[i].Split(['..']);
-    if (Length(parts)<>2) or
-       not TryStrToFloat(parts[0],ranges[i,0]) or
-       not TryStrToFloat(parts[1],ranges[i,1]) or
-       (ranges[i,0]<0) or (ranges[i,0]>360) or (ranges[i,1]<0) or (ranges[i,1]>360)then
-    begin
-      MessageDlg('Invalid angle Ranges', 'The ranges entered must be floating point numbers in the range of 0..360',mtWarning,[mbOK],'RangeError');
-      CanClose:=False;
-      Break;
-    end;
-  end;
-
   if not CanClose then
     Exit;
 
@@ -281,22 +164,10 @@ begin
   FScanOptions.DatFile:=DatFileEdit.FileName;
   if EnableJSONCheckbox.Checked then
     FScanOptions.JSONFile:=JSONFilenameEdit.FileName;
-
-  FRenderingOptions:=DefaultRenderingOptions;
-  FRenderingOptions.FilterRanges:=ranges;
-  if NormalizeCheckbox.Checked then
-    FRenderingOptions.NormalizationRadius:=NormalizationRadius
-  else
-    FRenderingOptions.NormalizationRadius:=-1;
-  FRenderingOptions.MaximumRadius:=MaxRadius;
-  FRenderingOptions.AlphaQuality:=AlphaCheckbox.Checked;
-  FRenderingOptions.PointColor:=PointColorButton.ButtonColor;
-  FRenderingOptions.BackgroundColor:=BackgroundColorButton.ButtonColor;
 end;
 
 procedure TOptionsDialog.FormCreate(Sender: TObject);
 begin
-  FRenderingOptions:=DefaultRenderingOptions;
   FScanOptions:=DefaultScanOptions;
 end;
 
