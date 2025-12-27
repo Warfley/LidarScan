@@ -2,11 +2,11 @@ BUILD_MODE?=Debug
 
 CXX:=clang++
 CXX_WARNINGS:=-Wall -pedantic -Werror
-CXX_CORE_ARGS:=-std=c++17 -Iinclude -Iexternal/include
+CXX_CORE_ARGS:=-std=c++20 -Iinclude -Iexternal/include
 CXX_DEBUG_ARGS:=-g -Og -fsanitize=address,undefined -DDEBUG
 CXX_RELEASE_ARGS:=-O3 -flto -DRELEASE
 
-LD_ARGS+=
+LD_ARGS+=-lglut -lOpenGL
 
 CXX_ARGS+=$(CXX_CORE_ARGS) $(CXX_WARNINGS)
 ifeq ($(BUILD_MODE), Debug)

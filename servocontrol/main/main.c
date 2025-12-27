@@ -14,8 +14,8 @@
 #define MIN_VAL 500
 #define MAX_VAL 9000
 
-#define DEFAULT_START 1300
-#define DEFAULT_STOP 7800
+#define DEFAULT_START 1500
+#define DEFAULT_STOP 7600
 
 static char const *TAG = "Servo Control";
 
@@ -308,7 +308,6 @@ void app_main(void) {
     ledc_timer_config_t timer;
     ledc_channel_config_t channel;
 
-    ESP_LOGI(TAG, "Testing PWM fade");
     timer = setup_timer(50,true);
     channel = setup_channel(&timer, 18);
     command_loop(&channel);

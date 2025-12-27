@@ -9,6 +9,8 @@
 
 #include "servo.h"
 #include "lidar.h"
+#include "renderer.h"
+#include "pointscan.h"
 
 
 using namespace sl;
@@ -50,20 +52,11 @@ bool parse_float(char const *s, double *out) {
     return true;
 }
 
-struct args {
-    std::string lidar_port;
-    std::string servo_port;
+struct args : public ScanArgs{
     std::optional<std::string> json_out;
     std::optional<std::string> binary_out;
     std::optional<std::string> asc_out;
-    double max_distance=32;
-    double low_angle=0;
-    double high_angle=360;
-    double start=0;
-    double stop=180;
-    double step=1;
-    double rotations=1;
-    bool verbose=false;
+    bool preview=false;
 };
 
 static inline std::optional<std::string> parse_argname(char const *arg) {
@@ -82,6 +75,8 @@ static inline std::optional<std::string> parse_argname(char const *arg) {
          : result == "s" ? "step"
          : result == "r" ? "rotations"
          : result == "v" ? "verbose"
+         : result == "c" ? "continuous"
+         : result == "p" ? "preview"
          : result;
 }
 
@@ -97,6 +92,14 @@ std::optional<args> parse_args(int argc, char const **argv) {
             }
             if (*try_name=="verbose") {
                 result.verbose=true;
+                continue;
+            }
+            if (*try_name=="continuous") {
+                result.continuous=true;
+                continue;
+            }
+            if (*try_name=="preview") {
+                result.preview=true;
                 continue;
             }
             arg_name = *try_name;
@@ -161,6 +164,8 @@ void print_help(char const *exec) {
               << "  -s --step        | Step size of scan range in degrees (default 1)\n"
               << "  -r --rotations   | Number of rotational scans per step (default 1)\n"
               << "  -v --verbose     | Print servo terminal output to STDOUT\n"
+              << "  -c --continuous  | do a continuous analysis\n"
+              << "  -p --preview     | Show a preview of the point cloud during scan\n"
               << "\n"
               << "Binary data format:\n"
               << "  Header:\n"
@@ -194,25 +199,11 @@ int main(int argc, char const **argv) {
         return 1;
     }
 
-    RPLidar lidar(args->lidar_port);
-    if (!lidar.connect()) {
-        std::cerr << "Error connecting to Lidar at " << args->lidar_port << std::endl;
+    PointScan scan(*args);
+    if (!scan.connect()) {
         return 1;
     }
-
-    auto device = lidar.device_info();
-    if (!device) {
-        std::cerr << "Couldn't detect lidar model information" << std::endl;
-        return 1;
-    }
-    std::cout << "Detected Lidar " << *device << std::endl;
-
-    Servo servo(args->servo_port);
-    if (!servo.connect()) {
-      std::cerr << "Error opening serial port " << args->servo_port << std::endl;
-      return 1;
-    }
-    servo.pipe_output(args->verbose ? &std::cout : nullptr);
+    scan.start();
 
     std::ofstream json_out;
     std::ofstream binary_out;
@@ -245,85 +236,70 @@ int main(int argc, char const **argv) {
         binary_out.write(reinterpret_cast<char const *>(&args->stop), sizeof(args->stop));
         binary_out.write(reinterpret_cast<char const *>(&args->step), sizeof(args->step));
     }
-    lidar.start_scan();
-    std::cout << lidar.scan_mode->us_per_sample << " " << lidar.rotation_frequency << " " << args->rotations << "\n";
-    auto pps = (std::uint32_t)((1000000./lidar.scan_mode->us_per_sample) / lidar.rotation_frequency * args->rotations);
     if (json_out.is_open()) {
-        json_out << "  \"pps\": " << pps << ",\n"
+        json_out << "  \"pps\": " << scan.points_per_scan() << ",\n"
                  << "  \"rotations\": " << args->rotations << ",\n"
                  << "  \"points\": [\n";
     }
     if (binary_out.is_open()) {
+        auto pps=scan.points_per_scan();
         binary_out.write(reinterpret_cast<char const *>(&args->rotations), sizeof(args->rotations));
         binary_out.write(reinterpret_cast<char const *>(&pps), sizeof(pps));
     }
-    std::cout << "Scanning range: " << args->start << "° to " << args->stop << "° in steps of " << args->step << "°" << std::endl;
-    bool first_printed = false;
-    for (double d=args->start;d<=args->stop;d+=args->step) {
-        servo.set_degree(d);
-        std::cout << "Scanning at " << d << "°... ";
-        std::cout.flush();
-        // Wait for the servo to move
-        // FIXME: is this too long?
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
-        // Grab frame
-        // FIXME: how many rotations should we grab (1 rotation ~1.5k points)
-        auto points = lidar.next_frame(args->rotations);
-        if (!points) {
-            std::cout << "fail... try again" << std::endl;
-            d-=args->step;
-            continue;
-        }
-        std::cout << "done" << std::endl;
-        for (std::size_t i=0;i<points->size();++i) {
 
-            ScanPoint p = points.value()[i];
-            if (p.distance>args->max_distance ||
-                !in_range(p.pitch, args->low_angle, args->high_angle) ||
-                p.quality == 0) {
-                continue;
-            }
-            if (json_out.is_open()) {
-                if (first_printed) {
-                    json_out << ",\n";
-                }
-                json_out << "    {\n"
-                         << "      \"pitch\": "    << p.pitch << ",\n"
-                         << "      \"yaw\": "      << d << ",\n"
-                         << "      \"distance\": " << p.distance << ",\n"
-                         << "      \"quality\": "  << static_cast<int>(p.quality) << "\n"
-                         << "    }";
-                first_printed=true;
-            }
-            if (binary_out.is_open()) {
-                binary_out.write(reinterpret_cast<char const *>(&d), sizeof(d));
-                binary_out.write(reinterpret_cast<char const *>(&p.pitch), sizeof(p.pitch));
-                binary_out.write(reinterpret_cast<char const *>(&p.distance), sizeof(p.distance));
-                binary_out.write(reinterpret_cast<char const *>(&p.quality), sizeof(p.quality));
-            }
-            if (asc_out.is_open()) {
-                #define DegToRad(d) d/180*M_PI
-                auto y = std::sin(DegToRad(p.pitch)) * p.distance;
-                auto tmp = std::cos(DegToRad(p.pitch)) * p.distance;
-                auto z = -std::sin(DegToRad(d)) * tmp;
-                auto x = std::cos(DegToRad(d)) * tmp;
-                #undef DegToRad
-                asc_out << x << " " << y << " " << z << " " << (std::int32_t)p.quality << " 255 255 255 " << -x/p.distance << " " << -y/p.distance << " " << -z/p.distance << "\n";
-            }
-        }
-        if (json_out.is_open() && d+args->step<=args->stop) {
-            json_out << ",\n";
-        }
+    if (args->preview) {
+        current_scanner=&scan;
+        start_renderer(argc, const_cast<char**>(argv));
     }
+    scan.wait_for();
+
+    scan.process_data<void>([&](auto &slices) {
+        auto first_printed = false;
+        for (auto const &slice : slices) {
+            for (auto const &p : slice.points) {
+                if (p.distance>args->max_distance ||
+                    !in_range(p.pitch, args->low_angle, args->high_angle) ||
+                    p.quality == 0) {
+                    continue;
+                }
+                if (json_out.is_open()) {
+                    if (first_printed) {
+                        json_out << ",\n";
+                    }
+                    json_out << "    {\n"
+                            << "      \"pitch\": "    << p.pitch << ",\n"
+                            << "      \"yaw\": "      << slice.degree << ",\n"
+                            << "      \"distance\": " << p.distance << ",\n"
+                            << "      \"quality\": "  << static_cast<int>(p.quality) << "\n"
+                            << "    }";
+                    first_printed=true;
+                }
+                if (binary_out.is_open()) {
+                    binary_out.write(reinterpret_cast<char const *>(&slice.degree), sizeof(slice.degree));
+                    binary_out.write(reinterpret_cast<char const *>(&p.pitch), sizeof(p.pitch));
+                    binary_out.write(reinterpret_cast<char const *>(&p.distance), sizeof(p.distance));
+                    binary_out.write(reinterpret_cast<char const *>(&p.quality), sizeof(p.quality));
+                }
+                if (asc_out.is_open()) {
+                    #define DegToRad(d) d/180*M_PI
+                    auto y = std::sin(DegToRad(p.pitch)) * p.distance;
+                    auto tmp = std::cos(DegToRad(p.pitch)) * p.distance;
+                    auto z = -std::sin(DegToRad(slice.degree)) * tmp;
+                    auto x = std::cos(DegToRad(slice.degree)) * tmp;
+                    #undef DegToRad
+                    asc_out << x << " " << y << " " << z << " " << (std::int32_t)p.quality << " 255 255 255 " << -x/p.distance << " " << -y/p.distance << " " << -z/p.distance << "\n";
+                }
+            }
+            if (json_out.is_open() && slice.degree+args->step<=args->stop) {
+                json_out << ",\n";
+            }
+        }
+    });
     if (json_out.is_open()) {
         json_out << "\n"
                  << "  ]\n"
                  << "}";
     }
-    lidar.stop_scan();
-
-    // Return to base position
-    servo.set_degree(0);
 
     return 0;
 }
