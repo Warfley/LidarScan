@@ -50,12 +50,17 @@ Vec4D point_color(double h) {
 }
 
 double move_x=0;
-double move_y=-0.7;
+double move_y=-1.15;
 double rot_x=0;
-double rot_y=80;
+double rot_y=75;
+double rot_z=0;
 double scale=0.1;
 
 void render_cloud(void) {
+    static auto last_frame=std::chrono::high_resolution_clock::now();
+    auto delta = std::chrono::high_resolution_clock::now()-last_frame;
+    auto wobble = std::sin(static_cast<double>(delta.count())/100000000000);
+    auto wobble2 = std::cos(static_cast<double>(delta.count())/600000000000);
     double const aspectRatio=static_cast<double>(window_width)/window_height;
 
     glClearColor(0.0, 0.0, 0.0, 1.0);
@@ -70,7 +75,8 @@ void render_cloud(void) {
     glLoadIdentity();
     glTranslated(move_x,move_y,0);
     glScaled(scale/aspectRatio,scale,scale);
-    glRotatef(rot_y,1,0,0);
+    glRotatef(rot_z+wobble2*10,1,0,0);
+    glRotatef(rot_y+wobble*15,1,0,0);
     glRotatef(rot_x,0,1,0);
 
     glBegin(GL_POINTS);
@@ -78,7 +84,7 @@ void render_cloud(void) {
         auto now=std::chrono::high_resolution_clock::now();
         for (auto slice : slices) {
             auto timediff=now-slice.time;
-            auto share = timediff.count()/static_cast<double>(std::chrono::nanoseconds(current_scanner->scan_time()).count());
+            auto share = timediff.count()/static_cast<double>(current_scanner->scan_time().count());
             auto color=point_color(share);
             for (auto p : slice.points) {
                 if (current_scanner->filter_point(p)) {

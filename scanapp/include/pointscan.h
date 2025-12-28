@@ -109,7 +109,8 @@ public:
     }
 
     auto scan_time(void) const {
-        return max_slices()*SLEEP_TIME;
+        auto const rot_time=args.rotations*std::chrono::milliseconds(200);
+        return max_slices()*(rot_time+SLEEP_TIME);
     }
 
     bool filter_point(ScanPoint const &p) {
