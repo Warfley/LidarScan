@@ -11,6 +11,8 @@
 #include <atomic>
 #include <functional>
 #include <cmath>
+#include <chrono>
+
 
 #include "lidar.h"
 #include "servo.h"
@@ -30,11 +32,21 @@ struct ScanArgs {
     bool verbose=false;
 };
 
+
+constexpr auto SLEEP_TIME=std::chrono::milliseconds(50);
+
+inline bool in_range(double value, double low, double high) {
+    return low < high
+        ? value>=low && value<=high
+        : value>=low || value<=high;
+}
+
 class PointScan {
 public:
     struct Slice {
         double degree;
         std::vector<ScanPoint> points;
+        std::chrono::time_point<std::chrono::high_resolution_clock> time;
     };
 private:
     std::thread scan_thread;
@@ -71,7 +83,7 @@ public:
     }
 
     std::size_t max_slices(void) const  {
-        return static_cast<std::size_t>((args.stop-args.start)/args.step);
+        return static_cast<std::size_t>((args.stop-args.start)/args.step)*(1+args.continuous);
     }
 
     bool running(void) const {
@@ -96,20 +108,30 @@ public:
         return f(slices);
     }
 
+    auto scan_time(void) const {
+        return max_slices()*SLEEP_TIME;
+    }
+
+    bool filter_point(ScanPoint const &p) {
+        return p.distance>args.max_distance ||
+            !in_range(p.pitch, args.low_angle, args.high_angle) ||
+            p.quality == 0;
+    }
+
 private:
     void fetch_thread(void);
 };
 
-struct PointCoord {
+struct Vec4D {
     double x, y, z, a;
 };
 
-inline PointCoord convert_point(ScanPoint const p, double const d) {
+inline Vec4D convert_point(ScanPoint const p, double const d) {
     #define DegToRad(d) d/180*M_PI
     auto y = std::sin(DegToRad(p.pitch)) * p.distance;
     auto tmp = std::cos(DegToRad(p.pitch)) * p.distance;
     auto z = -std::sin(DegToRad(d)) * tmp;
     auto x = std::cos(DegToRad(d)) * tmp;
     #undef DegToRad
-    return PointCoord{.x=x,.y=y,.z=z,.a=p.quality/255.};
+    return Vec4D{.x=x,.y=y,.z=z,.a=p.quality/255.};
 }

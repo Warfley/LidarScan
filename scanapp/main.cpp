@@ -186,12 +186,6 @@ void print_help(char const *exec) {
               << "asc Format: X Y Z <Intensity>\n";
 }
 
-bool in_range(double value, double low, double high) {
-    return low < high
-        ? value>=low && value<=high
-        : value>=low || value<=high;
-}
-
 int main(int argc, char const **argv) {
     auto args = parse_args(argc, argv);
     if (!args) {
@@ -256,9 +250,7 @@ int main(int argc, char const **argv) {
         auto first_printed = false;
         for (auto const &slice : slices) {
             for (auto const &p : slice.points) {
-                if (p.distance>args->max_distance ||
-                    !in_range(p.pitch, args->low_angle, args->high_angle) ||
-                    p.quality == 0) {
+                if (scan.filter_point(p)) {
                     continue;
                 }
                 if (json_out.is_open()) {

@@ -44,7 +44,7 @@ void PointScan::fetch_thread(void) {
         std::cout.flush();
         // Wait for the servo to move
         // FIXME: is this too long?
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        std::this_thread::sleep_for(SLEEP_TIME);
         // Grab frame
         // FIXME: how many rotations should we grab (1 rotation ~1.5k points)
         auto points = lidar.next_frame(rotations);
@@ -57,11 +57,11 @@ void PointScan::fetch_thread(void) {
             while (data.size()>=max_slices()) {
                 data.pop_front();
             }
-            data.emplace_back(Slice{.degree=d, .points=std::move(*points)});
+            data.emplace_back(Slice{.degree=d, .points=std::move(*points),.time=std::chrono::high_resolution_clock::now()});
         });
         
         std::cout << "done" << std::endl;
-        if (continuous) {
+        if (continuous && (d<start||d>stop)) {
             d=step>0 ? stop : start;
             step=-step;
         }
