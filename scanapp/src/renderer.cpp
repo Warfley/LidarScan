@@ -14,6 +14,16 @@ void on_resize(int w, int h) {
     window_width=w;
 }
 
+void on_key(unsigned char k, int x, int y) {
+    static bool fullscreen = false;
+    if (fullscreen) {
+        glutReshapeWindow(1024, 768);
+    } else {
+        glutFullScreen();
+    }
+    fullscreen=!fullscreen;
+}
+
 Vec4D point_color(double h) {
     if (h>1) {
         h=1;
@@ -29,12 +39,12 @@ Vec4D point_color(double h) {
 	double t = v * (1 - (1 - f) * s);
 
 	switch (i % 6) {
-		case 0: return Vec4D{.x=v,.y=t,.z=p,.a=1-h};
-		case 1: return Vec4D{.x=q,.y=v,.z=p,.a=1-h};
-		case 2: return Vec4D{.x=p,.y=v,.z=t,.a=1-h};
-		case 3: return Vec4D{.x=p,.y=q,.z=v,.a=1-h};
-		case 4: return Vec4D{.x=t,.y=p,.z=v,.a=1-h};
-		case 5: return Vec4D{.x=v,.y=p,.z=q,.a=1-h};
+		case 0: return Vec4D{.x=v,.y=t,.z=p,.a=1};
+		case 1: return Vec4D{.x=q,.y=v,.z=p,.a=1};
+		case 2: return Vec4D{.x=p,.y=v,.z=t,.a=1};
+		case 3: return Vec4D{.x=p,.y=q,.z=v,.a=1};
+		case 4: return Vec4D{.x=t,.y=p,.z=v,.a=1};
+		case 5: return Vec4D{.x=v,.y=p,.z=q,.a=1};
 	}
     return Vec4D{.x=0,.y=0,.z=0,.a=1};
 }
@@ -60,8 +70,8 @@ void render_cloud(void) {
     glLoadIdentity();
     glTranslated(move_x,move_y,0);
     glScaled(scale/aspectRatio,scale,scale);
-    glRotatef(rot_x,0,1,0);
     glRotatef(rot_y,1,0,0);
+    glRotatef(rot_x,0,1,0);
 
     glBegin(GL_POINTS);
     current_scanner->process_data<void>([](std::deque<PointScan::Slice> slices) {
@@ -96,5 +106,6 @@ void start_renderer(PointScan *scan, int argc, char ** argv) {
     glutCreateWindow("Preview");
     glutDisplayFunc(render_cloud);
     glutReshapeFunc(on_resize);
+    glutKeyboardFunc(on_key);
     glutMainLoop();
 }
