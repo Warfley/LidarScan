@@ -248,8 +248,7 @@ int main(int argc, char const **argv) {
     }
 
     if (args->preview) {
-        current_scanner=&scan;
-        start_renderer(argc, const_cast<char**>(argv));
+        start_renderer(&scan, argc, const_cast<char**>(argv));
     }
     scan.wait_for();
 
@@ -281,13 +280,8 @@ int main(int argc, char const **argv) {
                     binary_out.write(reinterpret_cast<char const *>(&p.quality), sizeof(p.quality));
                 }
                 if (asc_out.is_open()) {
-                    #define DegToRad(d) d/180*M_PI
-                    auto y = std::sin(DegToRad(p.pitch)) * p.distance;
-                    auto tmp = std::cos(DegToRad(p.pitch)) * p.distance;
-                    auto z = -std::sin(DegToRad(slice.degree)) * tmp;
-                    auto x = std::cos(DegToRad(slice.degree)) * tmp;
-                    #undef DegToRad
-                    asc_out << x << " " << y << " " << z << " " << (std::int32_t)p.quality << " 255 255 255 " << -x/p.distance << " " << -y/p.distance << " " << -z/p.distance << "\n";
+                    auto pt=convert_point(p,slice.degree);
+                    asc_out << pt.x << " " << pt.y << " " << pt.z << " " << (std::int32_t)p.quality << " 255 255 255 " << -pt.x/p.distance << " " << -pt.y/p.distance << " " << -pt.z/p.distance << "\n";
                 }
             }
             if (json_out.is_open() && slice.degree+args->step<=args->stop) {

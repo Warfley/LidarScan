@@ -10,9 +10,11 @@
 #include <optional>
 #include <atomic>
 #include <functional>
+#include <cmath>
 
 #include "lidar.h"
 #include "servo.h"
+
 
 struct ScanArgs {
     std::string lidar_port;
@@ -97,3 +99,17 @@ public:
 private:
     void fetch_thread(void);
 };
+
+struct PointCoord {
+    double x, y, z, a;
+};
+
+inline PointCoord convert_point(ScanPoint const p, double const d) {
+    #define DegToRad(d) d/180*M_PI
+    auto y = std::sin(DegToRad(p.pitch)) * p.distance;
+    auto tmp = std::cos(DegToRad(p.pitch)) * p.distance;
+    auto z = -std::sin(DegToRad(d)) * tmp;
+    auto x = std::cos(DegToRad(d)) * tmp;
+    #undef DegToRad
+    return PointCoord{.x=x,.y=y,.z=z,.a=p.quality/255.};
+}
