@@ -1,5 +1,9 @@
 # LIDAR based 3D Room Scanner
 
+![](images/setup.jpeg)
+![](images/pic.jpeg)
+![](images/video1.gif)
+
 ## Prequesites
 Besides the specific components used to build this project, the following Hardware and Software is required:
 
