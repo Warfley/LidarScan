@@ -86,3 +86,92 @@ Do not yet add the servo, as it needs to be set to the 0 position first.
 
 #### Tripod
 Once you assembled all the parts as described above, you can simply mount it on the tripod using the quarter inch screw insert on the bottom.
+
+## Software
+The software for this project consists of three programs:
+1. The control software for the servo running on the esp
+2. The software performing the scan and collecting the pointcloud
+3. A visualization software for viewing, filtering and exporting the pointcloud
+
+### Servo Control
+The first program located in the `servocontrol` directory uses an ESP to read control commands via serial and uses them to adjust the servo to certain degrees. The software was written for an ESP32 as this was the development board available for the project. But as servo is controlled via a single PWM pin and none of the more advanced features of the ESP are used, smaller and cheaper boards like the ESP c3 mini or something even smaller like an AVR could also be used.
+Also a consideration may be to combine the servo controlling functionality with the scanning on a raspberry pi or similar devices that support hardware PWM.
+
+The code is written using the plain ESP-IDF without any advanced libraries like arduino, which provides high speed 16 bit resolution PWM channels. Porting to smaller ESP boards may therefore require to adjust some of these settings. Most importantly, with changing the bitsize of the PWM channel the absolute values for relative percentages change.
+
+To use this software simply build with the ESP-IDF and flash to your ESP board:
+```bash
+$ idf.py build
+$ idf.py -p /dev/ttyUSB0 flash
+```
+
+#### Calibration
+Once you power the ESP and connect the servo (pin 18 in this configuration) the servo should be turning rougly to the origin. The exact orientation at which PWM value is highly dependent on the product and therefore requires calibration. Additionally the servo insert only fits the insert at certain angles, meaning after the servo has been resetted to the origin position, it can be assmbled and calibrated.
+
+For the final part of the assembly mount the servo onto the bottom platoform such when mounting on the top platform the black arrow of the top platform is roughly at or slightly below the the rightmost edge of the scale of the bottom platform. It does not need to align perfectly. Screw the servo on and connect it back to the ESP.
+
+To start the calibration connect the ESP to the computer and open up a COM terminal to the ESP command line interface:
+```bash
+$ idf.py -p /dev/ttyUSB0 monitor
+# Or if no esp-idf available
+$ screen /dev/ttyUSB0 115200
+[...]
+|>
+```
+In this interface you can start the calibration with
+```bash
+|> calibrate start 1000 3000
+```
+This will start the calibration process for the 0° PWM value with between 1000 and 3000. The calibration consists of a binary search where at each step you need to check the needed if it's above or below the 0° point on the measurement scale of the bottom platform and then react with `+` or `-` to go higher or lower respectively.
+
+After you did the 0° calibration, do the same for the 180° calibration:
+```bash
+|> calibrate stop 7000 9000
+```
+Note if you are using a different ESP with a different resolution, e.g. the c3 mini with only 14 bit resolution, you must adjust these values accordingly (value/2^16*2^14). Also before running adjust `DEFAULT_START` and `DEFAULT_STOP` in the C code accordingly, otherwise the servo might be fried.
+
+After calibration you can test a few different angles using the set command:
+```bash
+|> set 0
+|> set 10
+|> set 45
+|> set 90
+|> set 112.5
+|> set 180
+```
+And see if it moves as expected.
+
+The calibrated values are not stored permanently in the ESP, if you want to make these calibrations permanent, simply change the defines `DEFAULT_START` and `DEFAULT_STOP` with the new values and compile and re-flash.
+
+Once calbibration is finished you are good to go and start scanning.
+
+### Scanning Application
+The scanning application is a Linux only application written in C++ located in `scanapp`. It relies on the RP-Lidar SDK to communicate with the lidar. The RP-Lidar SDK is included as a submodule in this repository, so make sure you checked out all the submodules before running the make script.
+
+The build script requires clang as c++ compiler, even though the code should be fully ISO C++ 20 compliant and therefore also be compilable with g++ if the buildscript is adjusted. To build just run `make` and the executable should be compiled into `bin/scanapp`.
+
+To start scanning you need to provide the COM ports to the lidar and the ESP as command line arguments. Additionally further arguments can be specified to either narrow the scan range or specify output formats. For further details see the help page. To give an example:
+```bash
+bin/scanapp -b scan.dat -l 315 -l 45 -f 60 -t 120 -s 0.5 /dev/ttyUSB0 /dev/ttyUSB1
+```
+This scans a narrow area in front of the scanner 60°-120° horizontally and vertically the slice between 315° and 40° (going over 0/360, as 0° is directly in front of the scanner and 90° and 270° being straight up and down). It has a step width of half a degree. This should give quite a high resolution scan of something, e.g. a person in front of the scanner.
+
+It should be noted that the effectively reachable resolution depends on the servo. Not all can reach 0.5° horizontal resolution. In those cases it will become a sort of "ghost" resolution, where the application believes the servo has moved but the points received are the same as before just copying the same points at an offset. The best way to figure out whats the smalles resolution the servo can achieve is to set different angles and feel or hear if the servo starts moving:
+```bash
+# idf.py -p /dev/ttyUSB0 monitor
+|> set 10
+|> set 11
+|> set 11.5
+|> set 30
+|> set 30.5
+|> set 30.75
+...
+```
+Note it's to be expected that with small resolutions the servo may from time to time skip a step, as long as most of the time it's still moving it should be fine.
+
+That said, the ghost resolution can also be useful from time to time as a form of interpolation.
+
+#### Live Rendering
+
+The software also allow live rendering and updating while scanning. This can be done with the `--preview`/`-p` flag. Additionally the `--continuous`/`-c` can be used to instead of doing a single scan to continuously update the resulting image with new data.
+The visualization is still not that fleshed out, e.g. all the parameters for the viewing angles, movement, zoomm, etc. are currently hardcoded in the code.
